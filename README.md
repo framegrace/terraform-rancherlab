@@ -10,15 +10,30 @@ Terraform configuration for a local rancher cluster management lab
 - jq
 
 ## Install
-Once all requistes installed and can be run by your local user.
-Just do:
+Once all requistes installed and your user can run normally all of them (Local user just needs permission to use docker):
+
+Do:
 ```
 $ git clone https://github.com/framegrace/terraform-rancherlab.git
 $ cd terraform-rancherlab/sample-lab
 $ terraform init
 $ terraform plan -out=lab.plan
 $ terraform apply lab.plan
+...
+...
+Outputs:
+
+rancher_url = "https://172.19.0.2.sslip.io/"
+$
 ```
+Point your browser to the hostname printed at the end to Go to rancher. (Default password is admin/administrator. You can change it on the code)
+This sample creates a rancher cluster to host rancher, and a couple of sample clusters with 2 virtual nodes each.
+Prometheus monitoring is enabled by default.
+
+## Modifying
+Just check the main.tf file on the sample project on how all works.  You can create your own projects.
+The configuration is still sort of hardcoded, and more modules can be extracted. But is a good starting point to work with rancher.
+This terraform creates a private CA and all certificates needed to import clusters.
 ## Uninstall
 ```
 $ cd terraform-rancherlab/sample-lab
