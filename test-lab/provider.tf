@@ -20,6 +20,10 @@ terraform {
       source  = "rancher/rancher2"
       version = "3.0.2"
     }
+    external = {
+      source  = "hashicorp/external"
+      version = "2.3.1"
+    }
   }
 }
 

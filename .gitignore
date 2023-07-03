@@ -1,0 +1,6 @@
+.terraform.lock.hcl
+.terraform
+certs
+certs
+terraform.tfstate
+upc-lab/terraform.tfstate.backup
