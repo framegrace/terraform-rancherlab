@@ -2,49 +2,25 @@
 #source = "../modules/clusters"
 #}
 
+locals {
+  rancher_hostname = "${module.upc-rancher.docker-data-cp.IPAddress}.sslip.io"
+}
+
 module "upc-rancher" {
   source       = "../modules/cluster"
   cluster_name = "upc-rancher"
-  port_mappings = [
-    {
-      container_port = 80
-      host_port      = 80
-    },
-    {
-      container_port = 443
-      host_port      = 443
-    }
-  ]
 }
 
 module "upc-sample1" {
   source       = "../modules/cluster"
   cluster_name = "upc-sample1"
-  port_mappings = [
-    {
-      container_port = 81
-      host_port      = 81
-    },
-    {
-      container_port = 444
-      host_port      = 444
-    }
-  ]
+  workers      = 1
 }
 
 module "upc-sample2" {
   source       = "../modules/cluster"
   cluster_name = "upc-sample2"
-  port_mappings = [
-    {
-      container_port = 82
-      host_port      = 82
-    },
-    {
-      container_port = 445
-      host_port      = 445
-    }
-  ]
+  workers      = 1
 }
 
 provider "kubernetes" {
@@ -132,7 +108,7 @@ resource "kubernetes_secret" "tls-ca" {
 
 module "CSR" {
   source   = "../modules/CSR"
-  dns-name = "192.168.1.100.sslip.io"
+  dns-name = local.rancher_hostname
   ca_key   = module.CA.ca-priv-key-pem
   ca_cert  = module.CA.ca-cert-pem
 }
@@ -167,7 +143,7 @@ resource "helm_release" "rancher" {
 
   set {
     name  = "hostname"
-    value = "192.168.1.100.sslip.io"
+    value = local.rancher_hostname
   }
 
   set {
@@ -190,14 +166,14 @@ resource "helm_release" "rancher" {
 
 provider "rancher2" {
   alias     = "bootstrap"
-  api_url   = "https://192.168.1.100.sslip.io"
+  api_url   = "https://${local.rancher_hostname}"
   bootstrap = true
   insecure  = true
 }
 
 provider "rancher2" {
   alias     = "admin"
-  api_url   = "https://192.168.1.100.sslip.io"
+  api_url   = "https://${local.rancher_hostname}"
   token_key = rancher2_bootstrap.setup_admin.token
   insecure  = true
 }
@@ -226,7 +202,7 @@ provider "kubernetes" {
 }
 
 module "import-sample1" {
-  depends_on          = [rancher2_bootstrap.setup_admin]
+  depends_on          = [rancher2_bootstrap.setup_admin, module.upc-sample1]
   source              = "../modules/importer"
   cluster-name        = "upc-sample1"
   cluster-description = "UPC Sample cluster 1"
@@ -238,7 +214,7 @@ module "import-sample1" {
 }
 
 module "import-sample2" {
-  depends_on          = [rancher2_bootstrap.setup_admin]
+  depends_on          = [rancher2_bootstrap.setup_admin, module.upc-sample2]
   source              = "../modules/importer"
   cluster-name        = "upc-sample2"
   cluster-description = "UPC Sample cluster 2"
@@ -247,4 +223,8 @@ module "import-sample2" {
     kubernetes = kubernetes.upc-sample2
     rancher2   = rancher2.admin
   }
+}
+
+output "rancher_url" {
+  value = "https://${local.rancher_hostname}/"
 }

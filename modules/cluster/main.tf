@@ -3,7 +3,8 @@ variable "cluster_name" {
 }
 
 variable "workers" {
-  type = number
+  type    = number
+  default = 0
 }
 variable "node_image" {
   type    = string

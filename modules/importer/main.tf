@@ -70,7 +70,6 @@ resource "kubernetes_namespace" "cattle_system" {
   metadata {
     name = "cattle-system"
   }
-
   #depends_on = [kubernetes_cluster_role_binding.import_role_binding]
 }
 
