@@ -1,3 +1,11 @@
+variable "kind-cluster" {
+  type = object({
+    endpoint               = string
+    client_certificate     = string
+    client_key             = string
+    cluster_ca_certificate = string
+  })
+}
 variable "cluster-name" {
   type = string
 }
@@ -22,6 +30,12 @@ resource "rancher2_cluster" "rancher-server" {
   description = var.cluster-description
 }
 
+provider "kubernetes" {
+  host                   = var.kind-cluster.endpoint
+  client_certificate     = var.kind-cluster.client_certificate
+  client_key             = var.kind-cluster.client_key
+  cluster_ca_certificate = var.kind-cluster.cluster_ca_certificate
+}
 # MANIFEST FOR CLUSTER REGISTRATION
 
 # Cluster role
@@ -352,15 +366,18 @@ resource "kubernetes_service" "cattle_cluster_agent" {
   depends_on = [kubernetes_namespace.cattle_system]
 }
 
-resource "rancher2_app_v2" "rancher-monitoring" {
-  depends_on = [kubernetes_deployment.cattle_cluster_agent]
-  cluster_id = rancher2_cluster.rancher-server.id
-  name       = "rancher-monitoring"
-  namespace  = "cattle-monitoring-system"
-  repo_name  = "rancher-charts"
-  chart_name = "rancher-monitoring"
-  #chart_version = "9.4.200"
-  #values = file("values.yaml")
+output "cluster_id" {
+  value = rancher2_cluster.rancher-server.id
 }
+#resource "rancher2_app_v2" "rancher-monitoring" {
+#depends_on = [kubernetes_deployment.cattle_cluster_agent]
+#cluster_id = rancher2_cluster.rancher-server.id
+#name       = "rancher-monitoring"
+#namespace  = "cattle-monitoring-system"
+#repo_name  = "rancher-charts"
+#chart_name = "rancher-monitoring"
+##chart_version = "9.4.200"
+##values = file("values.yaml")
+#}
 
 
