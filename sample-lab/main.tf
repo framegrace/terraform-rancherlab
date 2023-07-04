@@ -71,7 +71,7 @@ module "rancher-server" {
 }
 
 provider "rancher2" {
-  alias     = "admin"
+  #alias     = "admin"
   api_url   = "https://${local.rancher_hostname}"
   token_key = module.rancher-server.token_key
   # Would need to add the CA to the local system
@@ -104,7 +104,8 @@ module "imported-cluster0" {
   ca-cert-pem         = module.CA.ca-cert-pem
   providers = {
     kubernetes : kubernetes.upc-sample0
-    rancher2 : rancher2.admin
+    #rancher2 : rancher2.admin
+    rancher2 : rancher2
   }
 }
 
@@ -116,33 +117,23 @@ module "imported-cluster1" {
   ca-cert-pem         = module.CA.ca-cert-pem
   providers = {
     kubernetes : kubernetes.upc-sample1
-    rancher2 : rancher2.admin
+    #rancher2 : rancher2.admin
+    rancher2 : rancher2
   }
 }
 
 resource "rancher2_cluster_sync" "wait-sync-0" {
-  provider   = rancher2.admin
+  #provider   = rancher2.admin
   cluster_id = module.imported-cluster0.cluster_id
 }
 resource "rancher2_cluster_sync" "wait-sync-1" {
-  provider   = rancher2.admin
+  #provider   = rancher2.admin
   cluster_id = module.imported-cluster1.cluster_id
 }
 
-# Add stuff to the servers using the provider and the cluster_id
-resource "rancher2_app_v2" "rancher-monitoring0" {
-  provider   = rancher2.admin
-  depends_on = [module.imported-cluster0]
-  cluster_id = module.imported-cluster0.cluster_id
-  name       = "rancher-monitoring"
-  namespace  = "cattle-monitoring-system"
-  repo_name  = "rancher-charts"
-  chart_name = "rancher-monitoring"
-  #chart_version = "9.4.200"
-  #values = file("values.yaml")
-}
-
-
 output "rancher_url" {
   value = "https://${local.rancher_hostname}/"
+}
+output "ca_cert-pem" {
+  value = module.CA.ca-cert-pem
 }

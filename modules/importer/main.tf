@@ -113,6 +113,9 @@ resource "kubernetes_cluster_role_binding" "cattle_admin_binding" {
 }
 
 resource "kubernetes_secret" "catle_credentials_rancher-server" {
+  lifecycle {
+    ignore_changes = [metadata[0].annotations]
+  }
   metadata {
     name      = "cattle-credentials-rancher-server"
     namespace = "cattle-system"
