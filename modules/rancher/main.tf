@@ -1,7 +1,7 @@
 
 variable "cluster" {
   type = object({
-    host                   = string
+    endpoint               = string
     client_certificate     = string
     client_key             = string
     cluster_ca_certificate = string
@@ -56,7 +56,6 @@ resource "kubernetes_namespace" "rancher_cattle_system" {
   metadata {
     name = "cattle-system"
   }
-  depends_on = [module.upc-rancher]
 }
 
 resource "kubernetes_secret" "tls-ca" {
@@ -68,17 +67,17 @@ resource "kubernetes_secret" "tls-ca" {
     namespace = "cattle-system"
   }
   data = {
-    "cacerts.pem" = module.CA.ca-cert-pem
+    "cacerts.pem" = var.CA.ca-cert-pem
   }
   type       = "generic"
   depends_on = [kubernetes_namespace.rancher_cattle_system]
 }
 
 module "CSR" {
-  source   = "${path.module}/../CSR"
+  source   = "../CSR"
   dns-name = var.hostname
-  ca_key   = module.CA.ca-priv-key-pem
-  ca_cert  = module.CA.ca-cert-pem
+  ca_key   = var.CA.ca-priv-key-pem
+  ca_cert  = var.CA.ca-cert-pem
 }
 
 resource "kubernetes_secret" "tls-rancher-ingress" {
@@ -87,7 +86,7 @@ resource "kubernetes_secret" "tls-rancher-ingress" {
   }
   metadata {
     name      = "tls-rancher-ingress"
-    namespace = kubernetes_namespace.rancher_cattle_system.metadata.name
+    namespace = kubernetes_namespace.rancher_cattle_system.metadata[0].name
   }
   data = {
     "tls.crt" = module.CSR.cert_pem
