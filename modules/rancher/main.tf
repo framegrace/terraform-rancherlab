@@ -1,13 +1,4 @@
 
-variable "cluster" {
-  type = object({
-    endpoint               = string
-    client_certificate     = string
-    client_key             = string
-    cluster_ca_certificate = string
-  })
-}
-
 variable "CA" {
   type = object({
     ca-cert-pem     = string
@@ -19,21 +10,21 @@ variable "hostname" {
   type = string
 }
 
-provider "kubernetes" {
-  host                   = var.cluster.endpoint
-  client_certificate     = var.cluster.client_certificate
-  client_key             = var.cluster.client_key
-  cluster_ca_certificate = var.cluster.cluster_ca_certificate
-}
-
-provider "helm" {
-  kubernetes {
-    host                   = var.cluster.endpoint
-    client_certificate     = var.cluster.client_certificate
-    client_key             = var.cluster.client_key
-    cluster_ca_certificate = var.cluster.cluster_ca_certificate
-  }
-}
+#provider "kubernetes" {
+#host                   = var.cluster.endpoint
+#client_certificate     = var.cluster.client_certificate
+#client_key             = var.cluster.client_key
+#cluster_ca_certificate = var.cluster.cluster_ca_certificate
+#}
+#
+#provider "helm" {
+#kubernetes {
+#host                   = var.cluster.endpoint
+#client_certificate     = var.cluster.client_certificate
+#client_key             = var.cluster.client_key
+#cluster_ca_certificate = var.cluster.cluster_ca_certificate
+#}
+#}
 
 resource "helm_release" "cert-manager" {
   name             = "cert-manager"
@@ -128,15 +119,15 @@ resource "helm_release" "rancher" {
   }
 }
 
-provider "rancher2" {
-  alias     = "bootstrap"
-  api_url   = "https://${var.hostname}"
-  bootstrap = true
-  insecure  = true
-}
+#provider "rancher2" {
+#alias     = "bootstrap"
+#api_url   = "https://${var.hostname}"
+#bootstrap = true
+#insecure  = true
+#}
 
 resource "rancher2_bootstrap" "setup_admin" {
-  provider         = rancher2.bootstrap
+  # provider         = rancher2.bootstrap
   depends_on       = [helm_release.rancher]
   initial_password = "rancherrancher"
   password         = "administrator"

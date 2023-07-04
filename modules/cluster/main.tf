@@ -56,7 +56,7 @@ resource "null_resource" "kubectl_apply" {
     command = <<EOF
       kubectl config use-context kind-upc-rancher && \
       kubectl apply -n ingress-nginx -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml && \
-      sleep 15
+      sleep 20
       kubectl config use-context kind-upc-rancher && \
       kubectl wait --namespace ingress-nginx \
          --for=condition=ready pod \

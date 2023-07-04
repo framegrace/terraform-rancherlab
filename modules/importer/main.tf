@@ -1,11 +1,3 @@
-variable "kind-cluster" {
-  type = object({
-    endpoint               = string
-    client_certificate     = string
-    client_key             = string
-    cluster_ca_certificate = string
-  })
-}
 variable "cluster-name" {
   type = string
 }
@@ -24,18 +16,23 @@ data "rancher2_setting" "install_uuid" {
 data "rancher2_setting" "server_url" {
   name = "server-url"
 }
+#
+# Namespace
+resource "kubernetes_namespace" "cattle_system" {
+  lifecycle {
+    ignore_changes = all
+  }
+  metadata {
+    name = "cattle-system"
+  }
+}
 
 resource "rancher2_cluster" "rancher-server" {
   name        = var.cluster-name
   description = var.cluster-description
+  depends_on  = [kubernetes_namespace.cattle_system]
 }
 
-provider "kubernetes" {
-  host                   = var.kind-cluster.endpoint
-  client_certificate     = var.kind-cluster.client_certificate
-  client_key             = var.kind-cluster.client_key
-  cluster_ca_certificate = var.kind-cluster.cluster_ca_certificate
-}
 # MANIFEST FOR CLUSTER REGISTRATION
 
 # Cluster role
@@ -76,16 +73,6 @@ resource "kubernetes_cluster_role_binding" "proxy_role_binding_kubernetes_master
   #depends_on = [kubernetes_cluster_role_binding.import_role_binding]
 }
 
-# Namespace
-resource "kubernetes_namespace" "cattle_system" {
-  lifecycle {
-    ignore_changes = all
-  }
-  metadata {
-    name = "cattle-system"
-  }
-  #depends_on = [kubernetes_cluster_role_binding.import_role_binding]
-}
 
 # Service account
 resource "kubernetes_service_account" "cattle" {
@@ -333,7 +320,7 @@ resource "kubernetes_deployment" "cattle_cluster_agent" {
     }
   }
 
-  depends_on = [kubernetes_service_account.cattle]
+  depends_on = [kubernetes_service_account.cattle, kubernetes_namespace.cattle_system]
 }
 
 # Service definition
@@ -365,6 +352,10 @@ resource "kubernetes_service" "cattle_cluster_agent" {
 
   depends_on = [kubernetes_namespace.cattle_system]
 }
+
+#resource "rancher2_cluster_sync" "wait-sync" {
+#  cluster_id = rancher2_cluster.rancher-server.id
+#}
 
 output "cluster_id" {
   value = rancher2_cluster.rancher-server.id

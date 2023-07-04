@@ -23,6 +23,10 @@ terraform {
   }
 }
 
+#provider "rancher2" {
+#  # Configuration options
+#  api_url = "http://${local.rancher_hostname}"
+#}
 provider "kind" {
   # Configuration options
 }
