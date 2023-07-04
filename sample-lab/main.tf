@@ -12,15 +12,17 @@ module "upc-rancher" {
 }
 
 module "upc-sample1" {
-  source       = "../modules/cluster"
-  cluster_name = "upc-sample1"
-  workers      = 1
+  source        = "../modules/cluster"
+  cluster_name  = "upc-sample1"
+  workers       = 1
+  nginx_ingress = false
 }
 
 module "upc-sample2" {
-  source       = "../modules/cluster"
-  cluster_name = "upc-sample2"
-  workers      = 1
+  source        = "../modules/cluster"
+  cluster_name  = "upc-sample2"
+  workers       = 1
+  nginx_ingress = false
 }
 
 provider "kubernetes" {
@@ -54,24 +56,6 @@ resource "helm_release" "cert-manager" {
   set {
     name  = "installCRDs"
     value = "true"
-  }
-}
-
-
-resource "null_resource" "kubectl_apply" {
-  depends_on = [module.upc-rancher]
-  provisioner "local-exec" {
-    #command = "kubectl config use-context kind-upc-rancher && kubectl create namespace ingress-nginx && kubectl apply -n ingress-nginx -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml"
-    command = <<EOF
-      kubectl config use-context kind-upc-rancher && \
-      kubectl apply -n ingress-nginx -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml && \
-      sleep 15
-      kubectl config use-context kind-upc-rancher && \
-      kubectl wait --namespace ingress-nginx \
-         --for=condition=ready pod \
-         --selector=app.kubernetes.io/component=controller \
-         --timeout=90s
-EOF
   }
 }
 
@@ -132,7 +116,7 @@ resource "kubernetes_secret" "tls-rancher-ingress" {
 
 resource "helm_release" "rancher" {
   provider   = helm.upc-rancher
-  depends_on = [null_resource.kubectl_apply, kubernetes_secret.tls-ca, kubernetes_secret.tls-rancher-ingress]
+  depends_on = [kubernetes_secret.tls-ca, kubernetes_secret.tls-rancher-ingress]
   name       = "rancher"
   namespace  = "cattle-system"
   chart      = "rancher"
