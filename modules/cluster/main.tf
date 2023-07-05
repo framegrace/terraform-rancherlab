@@ -21,6 +21,11 @@ variable "storagePath" {
   type = string
 }
 
+variable "use_calico" {
+  type    = bool
+  default = true
+}
+
 resource "null_resource" "create-storage" {
   provisioner "local-exec" {
     command = "[ ! -e ${var.storagePath}/${var.cluster_name} ] && mkdir -p ${var.storagePath}/${var.cluster_name} || true"
@@ -33,6 +38,9 @@ resource "kind_cluster" "k8s_cluster" {
   kind_config {
     kind        = "Cluster"
     api_version = "kind.x-k8s.io/v1alpha4"
+    networking {
+      disable_default_cni = !var.use_calico
+    }
     node {
       role = "control-plane"
       kubeadm_config_patches = [
@@ -68,10 +76,10 @@ resource "null_resource" "kubectl_apply" {
   provisioner "local-exec" {
     #command = "kubectl config use-context kind-upc-rancher && kubectl create namespace ingress-nginx && kubectl apply -n ingress-nginx -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml"
     command = <<EOF
-      kubectl config use-context kind-upc-rancher && \
+      kubectl config use-context kind-${var.cluster_name} && \
       kubectl apply -n ingress-nginx -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml && \
-      sleep 20
-      kubectl config use-context kind-upc-rancher && \
+      sleep 22
+      kubectl config use-context kind-${var.cluster_name} && \
       kubectl wait --namespace ingress-nginx \
          --for=condition=ready pod \
          --selector=app.kubernetes.io/component=controller \
@@ -79,6 +87,18 @@ resource "null_resource" "kubectl_apply" {
 EOF
   }
 }
+
+resource "null_resource" "calico" {
+  count      = var.use_calico ? 1 : 0
+  depends_on = [kind_cluster.k8s_cluster]
+  provisioner "local-exec" {
+    command = <<EOF
+      kubectl config use-context kind-${var.cluster_name} && \
+      kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/calico.yaml
+EOF
+  }
+}
+#
 #
 data "external" "docker-cp" {
   depends_on = [kind_cluster.k8s_cluster]

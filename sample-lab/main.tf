@@ -3,7 +3,7 @@
 #}
 variable "nodes_per_cluster" {
   type    = number
-  default = 0
+  default = 1
 }
 
 variable "storage" {
@@ -22,18 +22,16 @@ module "upc-rancher" {
 }
 
 module "upc-sample0" {
-  source        = "../modules/cluster"
-  cluster_name  = "upc-sample-0"
-  workers       = var.nodes_per_cluster
-  storagePath   = "${path.module}/${var.storage}"
-  nginx_ingress = false
+  source       = "../modules/cluster"
+  cluster_name = "upc-sample-0"
+  workers      = var.nodes_per_cluster
+  storagePath  = "${path.module}/${var.storage}"
 }
 module "upc-sample1" {
-  source        = "../modules/cluster"
-  cluster_name  = "upc-sample-1"
-  workers       = var.nodes_per_cluster
-  storagePath   = "${path.module}/${var.storage}"
-  nginx_ingress = false
+  source       = "../modules/cluster"
+  cluster_name = "upc-sample-1"
+  workers      = var.nodes_per_cluster
+  storagePath  = "${path.module}/${var.storage}"
 }
 
 module "CA" {
@@ -138,6 +136,10 @@ resource "rancher2_cluster_sync" "wait-sync-1" {
   #provider   = rancher2.admin
   cluster_id = module.imported-cluster1.cluster_id
 }
+data "rancher2_cluster" "local-cluster" {
+  depends_on = [module.rancher-server]
+  name       = "local"
+}
 
 output "rancher_url" {
   value = "https://${local.rancher_hostname}/"
@@ -149,13 +151,18 @@ output "rancher_token" {
 output "rancher_cluster" {
   value = module.upc-rancher.data
 }
+output "rancher_cluster_cluster_id" {
+  value = data.rancher2_cluster.local-cluster.id
+}
 output "sample_cluster_ids" {
   value = [{
     name         = "upc-sample0",
+    IP           = module.upc-sample0.docker-data-cp.IPAddress,
     id           = module.imported-cluster0.cluster_id,
     cluster_data = module.upc-sample0.data
     }, {
     name         = "upc-sample1",
+    IP           = module.upc-sample0.docker-data-cp.IPAddress,
     id           = module.imported-cluster1.cluster_id,
     cluster_data = module.upc-sample1.data
   }]
