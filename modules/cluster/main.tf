@@ -17,7 +17,17 @@ variable "node_image" {
   default = "kindest/node:v1.26.6@sha256:6e2d8b28a5b601defe327b98bd1c2d1930b49e5d8c512e1895099e4504007adb"
 }
 
+variable "storagePath" {
+  type = string
+}
+
+resource "null_resource" "create-storage" {
+  provisioner "local-exec" {
+    command = "[ ! -e ${var.storagePath}/${var.cluster_name} ] && mkdir -p ${var.storagePath}/${var.cluster_name} || true"
+  }
+}
 resource "kind_cluster" "k8s_cluster" {
+  depends_on = [null_resource.create-storage]
   name       = var.cluster_name
   node_image = var.node_image
   kind_config {
@@ -28,6 +38,10 @@ resource "kind_cluster" "k8s_cluster" {
       kubeadm_config_patches = [
         "kind: InitConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"ingress-ready=true\"\n"
       ]
+      extra_mounts {
+        host_path      = "${var.storagePath}/${var.cluster_name}"
+        container_path = "/host"
+      }
     }
     dynamic "node" {
       for_each = range(var.workers)

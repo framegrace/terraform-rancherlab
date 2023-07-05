@@ -6,25 +6,33 @@ variable "nodes_per_cluster" {
   default = 0
 }
 
+variable "storage" {
+  type    = string
+  default = "storage"
+}
+
 locals {
-  rancher_hostname = "${module.upc-rancher.docker-data-cp.IPAddress}.sslip.io"
+  rancher_hostname = "rancher-${module.upc-rancher.docker-data-cp.IPAddress}.sslip.io"
 }
 
 module "upc-rancher" {
   source       = "../modules/cluster"
   cluster_name = "upc-rancher"
+  storagePath  = "${path.module}/${var.storage}"
 }
 
 module "upc-sample0" {
   source        = "../modules/cluster"
   cluster_name  = "upc-sample-0"
   workers       = var.nodes_per_cluster
+  storagePath   = "${path.module}/${var.storage}"
   nginx_ingress = false
 }
 module "upc-sample1" {
   source        = "../modules/cluster"
   cluster_name  = "upc-sample-1"
   workers       = var.nodes_per_cluster
+  storagePath   = "${path.module}/${var.storage}"
   nginx_ingress = false
 }
 
@@ -134,6 +142,28 @@ resource "rancher2_cluster_sync" "wait-sync-1" {
 output "rancher_url" {
   value = "https://${local.rancher_hostname}/"
 }
+output "rancher_token" {
+  value     = module.rancher-server.token_key
+  sensitive = true
+}
+output "rancher_cluster" {
+  value = module.upc-rancher.data
+}
+output "sample_cluster_ids" {
+  value = [{
+    name         = "upc-sample0",
+    id           = module.imported-cluster0.cluster_id,
+    cluster_data = module.upc-sample0.data
+    }, {
+    name         = "upc-sample1",
+    id           = module.imported-cluster1.cluster_id,
+    cluster_data = module.upc-sample1.data
+  }]
+}
 output "ca_cert-pem" {
   value = module.CA.ca-cert-pem
+}
+output "ca_cert-key" {
+  value     = module.CA.ca-priv-key-pem
+  sensitive = true
 }

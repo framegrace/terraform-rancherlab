@@ -20,7 +20,7 @@ data "rancher2_setting" "server_url" {
 # Namespace
 resource "kubernetes_namespace" "cattle_system" {
   lifecycle {
-    ignore_changes = all
+    ignore_changes = [metadata]
   }
   metadata {
     name = "cattle-system"
