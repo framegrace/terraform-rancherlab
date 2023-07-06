@@ -144,15 +144,23 @@ data "rancher2_cluster" "local-cluster" {
 output "rancher_url" {
   value = "https://${local.rancher_hostname}/"
 }
+output "sample0_url" {
+  value = "https://${module.upc-sample0.docker-data-cp.IPAddress}.sslip.io/"
+}
+output "sample1_url" {
+  value = "https://${module.upc-sample1.docker-data-cp.IPAddress}.sslip.io/"
+}
 output "rancher_token" {
   value     = module.rancher-server.token_key
   sensitive = true
 }
 output "rancher_cluster" {
-  value = module.upc-rancher.data
+  value     = module.upc-rancher.data
+  sensitive = true
 }
 output "rancher_cluster_cluster_id" {
-  value = data.rancher2_cluster.local-cluster.id
+  value     = data.rancher2_cluster.local-cluster.id
+  sensitive = true
 }
 output "sample_cluster_ids" {
   value = [{
@@ -166,6 +174,7 @@ output "sample_cluster_ids" {
     id           = module.imported-cluster1.cluster_id,
     cluster_data = module.upc-sample1.data
   }]
+  sensitive = true
 }
 output "ca_cert-pem" {
   value = module.CA.ca-cert-pem
