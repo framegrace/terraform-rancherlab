@@ -81,7 +81,7 @@ prometheus:
 #     - role: endpoint
 #     relabel_configs:
 #     - source_labels: [__meta_kubernetes_pod_label_project_id]
-#     target_label: project_id
+#       target_label: project_id
 EOT
 }
 
@@ -137,26 +137,13 @@ prometheus:
       objectStorageConfig: 
         key: "thanos-config.yaml"
         name: "thanos-container-config"
-# serviceMonitor:
-#   relabelings:
-#   - sourceLabels: [__meta_kubernetes_pod_label_projectid]
-#     targetLabel: projectid
-#     action: replace
 kube-state-metrics:
   metricLabelsAllowlist:
   - pods=[projectid]
-  prometheus:
-    monitor:
-      honorLabels: true
-      relabelings:
-      - source_labels: [label_projectid]
-        target_label: projectid
-      - regex: label_projectid
-        action: labeldrop
 EOT
-  #chart_version = "9.4.200"
-  #values = file("values.yaml")
 }
+#  #chart_version = "9.4.200"
+#values = file("values.yaml")
 #
 #     - action: keep
 #       source_labels: [ __meta_kubernetes_pod_label_projectid ]
