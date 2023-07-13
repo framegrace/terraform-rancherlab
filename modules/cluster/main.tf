@@ -55,20 +55,20 @@ resource "kind_cluster" "k8s_cluster" {
       for_each = range(var.workers)
       content {
         role = "worker"
-        #kubeadm_config_patches = [
-        #  "kind: JoinConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"ingress-ready=true\"\n"
-        #]
+        #       kubeadm_config_patches = [
+        #         "kind: JoinConfiguration\nnodeRegistration:\n  kubeletExtraArgs:\n    node-labels: \"ingress-ready=true\"\n"
+        #       ]
       }
     }
   }
 }
 
-provider "kubernetes" {
-  host                   = kind_cluster.k8s_cluster.endpoint
-  client_certificate     = kind_cluster.k8s_cluster.client_certificate
-  client_key             = kind_cluster.k8s_cluster.client_key
-  cluster_ca_certificate = kind_cluster.k8s_cluster.cluster_ca_certificate
-}
+#provider "kubernetes" {
+#host                   = kind_cluster.k8s_cluster.endpoint
+#client_certificate     = kind_cluster.k8s_cluster.client_certificate
+#client_key             = kind_cluster.k8s_cluster.client_key
+#cluster_ca_certificate = kind_cluster.k8s_cluster.cluster_ca_certificate
+#}
 
 resource "null_resource" "kubectl_apply" {
   count      = var.nginx_ingress ? 1 : 0
@@ -76,14 +76,15 @@ resource "null_resource" "kubectl_apply" {
   provisioner "local-exec" {
     #command = "kubectl config use-context kind-upc-rancher && kubectl create namespace ingress-nginx && kubectl apply -n ingress-nginx -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml"
     command = <<EOF
+      sleep 5
       kubectl config use-context kind-${var.cluster_name} && \
-      kubectl apply -n ingress-nginx -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml && \
+      kubectl apply -n ingress-nginx -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/kind/deploy.yaml
       sleep 22
       kubectl config use-context kind-${var.cluster_name} && \
       kubectl wait --namespace ingress-nginx \
          --for=condition=ready pod \
          --selector=app.kubernetes.io/component=controller \
-         --timeout=90s
+         --timeout=120s
 EOF
   }
 }

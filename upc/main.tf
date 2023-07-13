@@ -75,13 +75,6 @@ prometheus:
       objectStorageConfig: 
         key: "thanos-config.yaml"
         name: "thanos-container-config"
-#   additionalScrapeConfigs:
-#   - job_name: 'kube-state-metrics'
-#     kubernetes_sd_configs:
-#     - role: endpoint
-#     relabel_configs:
-#     - source_labels: [__meta_kubernetes_pod_label_project_id]
-#       target_label: project_id
 EOT
 }
 
@@ -137,9 +130,6 @@ prometheus:
       objectStorageConfig: 
         key: "thanos-config.yaml"
         name: "thanos-container-config"
-kube-state-metrics:
-  metricLabelsAllowlist:
-  - pods=[projectid]
 EOT
 }
 #  #chart_version = "9.4.200"

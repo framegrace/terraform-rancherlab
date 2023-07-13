@@ -83,11 +83,12 @@ resource "kubernetes_secret" "tls-rancher-ingress" {
     "tls.crt" = module.CSR.cert_pem
     "tls.key" = module.CSR.cert_key
   }
-  type = "kubernetes.io/tls"
+  type       = "kubernetes.io/tls"
+  depends_on = [kubernetes_namespace.rancher_cattle_system]
 }
 
 resource "helm_release" "rancher" {
-  depends_on = [kubernetes_secret.tls-ca, kubernetes_secret.tls-rancher-ingress]
+  depends_on = [kubernetes_secret.tls-ca, kubernetes_secret.tls-rancher-ingress, kubernetes_namespace.rancher_cattle_system]
   name       = "rancher"
   namespace  = "cattle-system"
   chart      = "rancher"

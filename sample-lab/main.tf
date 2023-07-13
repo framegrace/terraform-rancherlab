@@ -22,16 +22,20 @@ module "upc-rancher" {
 }
 
 module "upc-sample0" {
+  depends_on   = [module.upc-rancher]
   source       = "../modules/cluster"
   cluster_name = "upc-sample-0"
-  workers      = var.nodes_per_cluster
-  storagePath  = "${path.module}/${var.storage}"
+  #nginx_ingress = false
+  workers     = var.nodes_per_cluster
+  storagePath = "${path.module}/${var.storage}"
 }
 module "upc-sample1" {
+  depends_on   = [module.upc-rancher, module.upc-sample0]
   source       = "../modules/cluster"
   cluster_name = "upc-sample-1"
-  workers      = var.nodes_per_cluster
-  storagePath  = "${path.module}/${var.storage}"
+  #nginx_ingress = false
+  workers     = var.nodes_per_cluster
+  storagePath = "${path.module}/${var.storage}"
 }
 
 module "CA" {
@@ -65,7 +69,7 @@ provider "rancher2" {
 }
 
 module "rancher-server" {
-  depends_on = [module.upc-rancher]
+  depends_on = [module.upc-rancher, module.upc-sample0, module.upc-sample1]
   source     = "../modules/rancher"
   hostname   = local.rancher_hostname
   CA         = module.CA
