@@ -1,0 +1,71 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: monitoring-dyn-metrics
+  namespace: cattle-monitoring-system
+spec:
+  jobLabel: monitoring-dyn-metrics
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: upc-monitoring
+      app.kubernetes.io/name: dyn-metrics
+  namespaceSelector:
+    matchNames:
+    - cattle-monitoring-system
+  endpoints:
+  - port: http
+    interval: 30s
+    honorLabels: true
+    path: /metrics
+    scheme: http
+    followRedirects: true
+    metricRelabelings:
+    - sourceLabels: [__address__]
+      targetLabel: cluster_id
+      replacement: c-znf8d
+      action: replace
+    - sourceLabels: [__address__]
+      targetLabel: cluster_name
+      replacement: upc-sample0
+      action: replace
+#   - sourceLabels: [project_id]
+#     targetLabel: projectid2
+#     replacement: testing
+#     action: replace
+    relabelings:
+    - sourceLabels: [job]
+      targetLabel: __tmp_prometheus_job_name
+      action: replace
+    - sourceLabels: [__meta_kubernetes_namespace]
+      targetLabel: namespace
+      action: replace
+    - sourceLabels: [__meta_kubernetes_service_name]
+      targetLabel: service
+      action: replace
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      targetLabel: pod
+      action: replace
+    - sourceLabels: [__meta_kubernetes_pod_container_name]
+      targetLabel: container
+      action: replace
+    - sourceLabels: [__meta_kubernetes_service_name]
+      targetLabel: job
+      action: replace
+    - sourceLabels: [__meta_kubernetes_service_label_app_kubernetes_io_name]
+      targetLabel: job
+      action: replace
+    - sourceLabels: [__meta_kubernetes_service_label_app_upcnet_project_id]
+      targetLabel: project_id
+      action: replace
+    - targetLabel: endpoint
+      replacement: http
+      action: replace
+    - sourceLabels: [__address__]
+      regex: (.*)
+      modulus: 1
+      targetLabel: __tmp_hash
+      action: hashmod
+    - sourceLabels: [__tmp_hash]
+      regex: "0"
+      action: keep
+
