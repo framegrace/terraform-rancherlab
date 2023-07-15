@@ -7,8 +7,7 @@ spec:
   jobLabel: monitoring-dyn-metrics
   selector:
     matchLabels:
-      app.kubernetes.io/instance: upc-monitoring
-      app.kubernetes.io/name: dyn-metrics
+      app: dyn-metrics
   namespaceSelector:
     matchNames:
     - cattle-monitoring-system
@@ -51,10 +50,10 @@ spec:
     - sourceLabels: [__meta_kubernetes_service_name]
       targetLabel: job
       action: replace
-    - sourceLabels: [__meta_kubernetes_service_label_app_kubernetes_io_name]
-      targetLabel: job
-      action: replace
-    - sourceLabels: [__meta_kubernetes_service_label_app_upcnet_project_id]
+#    - sourceLabels: [__meta_kubernetes_service_label_app_kubernetes_io_name]
+#     targetLabel: job
+#     action: replace
+    - sourceLabels: [__meta_kubernetes_pod_label_project_id]
       targetLabel: project_id
       action: replace
     - targetLabel: endpoint

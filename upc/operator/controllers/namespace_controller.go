@@ -3,11 +3,13 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -24,27 +26,24 @@ type NamespaceReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-var projectNamespaces = make(map[string]map[string]struct{})
+var (
+	// projectNamespaces maps a project to its namespaces
+	projectNamespaces = make(map[string]map[string]struct{})
 
-var mutex = &sync.Mutex{} // used to safely control access to projectNamespaces
+	// namespaceToProjectMap maps a namespace to its project
+	namespaceToProjectMap = make(map[string]string)
 
-func prettyPrintProjectNamespaces() string {
-	mutex.Lock()
-	defer mutex.Unlock()
+	lock = &sync.Mutex{}
 
-	var builder strings.Builder
-	for projectId, namespaces := range projectNamespaces {
-		builder.WriteString(fmt.Sprintf("projectId: %s\n", projectId))
-		for namespace := range namespaces {
-			builder.WriteString(fmt.Sprintf("  namespace: %s\n", namespace))
-		}
-	}
-	return builder.String()
-}
+	log = logrus.New()
+
+	retryCount = make(map[string]int)
+)
 
 func (r *NamespaceReconciler) ensureKubeStateMetricsDeployment(ctx context.Context, projectId string, namespaces []string) error {
+	app := "dyn-metrics"
 	image := "rancher/mirrored-kube-state-metrics-kube-state-metrics:v2.6.0"
-	deploymentName := "dyn-metrics-for-" + projectId
+	deploymentName := app + "-for-" + projectId
 	namespaceList := strings.Join(namespaces, ",")
 	command := []string{
 		"/kube-state-metrics",
@@ -57,7 +56,7 @@ func (r *NamespaceReconciler) ensureKubeStateMetricsDeployment(ctx context.Conte
 	err := r.Get(ctx, client.ObjectKey{Namespace: "cattle-monitoring-system", Name: deploymentName}, deployment)
 
 	// Define the desired state of the Deployment
-	desiredDeployment := newKubeStateMetricsDeployment(deploymentName, command, image)
+	desiredDeployment := newKubeStateMetricsDeployment(deploymentName, app, projectId, command, image)
 
 	switch {
 	case err == nil:
@@ -80,14 +79,14 @@ func (r *NamespaceReconciler) ensureKubeStateMetricsDeployment(ctx context.Conte
 		log.Info("Created kube-state-metrics Deployment", "Deployment.Namespace", deployment.Namespace, "Deployment.Name", deployment.Name)
 	default:
 		// Unexpected error.
-		log.Error(err, "Failed to get kube-state-metrics Deployment", "Deployment.Namespace", "cattle-monitoring-system", "Deployment.Name", deploymentName)
+		log.Error(err, "Failed to get kube-state-metrics Deployment", "Deployment.Namespace", "cattle-monitoring-system", "Deployment.Name", deployment.Name)
 		return err
 	}
 
 	return nil
 }
 
-func newKubeStateMetricsDeployment(deploymentName string, command []string, image string) *v1.Deployment {
+func newKubeStateMetricsDeployment(deploymentName string, app string, projectId string, command []string, image string) *v1.Deployment {
 	return &v1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deploymentName,
@@ -96,11 +95,11 @@ func newKubeStateMetricsDeployment(deploymentName string, command []string, imag
 		Spec: v1.DeploymentSpec{
 			Replicas: int32Ptr(1), // replace with the number of replicas you need
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": deploymentName},
+				MatchLabels: map[string]string{"project-app": deploymentName},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": deploymentName},
+					Labels: map[string]string{"project-app": deploymentName, "app": app, "project_id": projectId},
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: "rancher-monitoring-kube-state-metrics",
@@ -149,85 +148,149 @@ func (r *NamespaceReconciler) deleteKubeStateMetricsDeployment(ctx context.Conte
 	return nil
 }
 
-func getNamespaceListFromMap(namespaces map[string]struct{}) []string {
-	namespaceList := make([]string, 0, len(namespaces))
-	for namespace := range namespaces {
-		namespaceList = append(namespaceList, namespace)
+func getNamespaceListFromMap(namespaceMap map[string]struct{}) []string {
+	namespaces := make([]string, len(namespaceMap))
+	i := 0
+	for namespace := range namespaceMap {
+		namespaces[i] = namespace
+		i++
 	}
-	return namespaceList
+	return namespaces
 }
 
 // Reconcile compares the state specified by the Namespace object against the actual cluster state
 // and performs operations to make the cluster state reflect the state specified by the user.
+
+// Handle a namespace that has been deleted.
+func (r *NamespaceReconciler) handleNamespaceDeleted(ctx context.Context, namespaceName string) error {
+	lock.Lock()
+	defer lock.Unlock()
+
+	projectId := namespaceToProjectMap[namespaceName]
+	delete(projectNamespaces[projectId], namespaceName)
+
+	log.WithFields(logrus.Fields{
+		"namespace": namespaceName,
+		"projectId": projectId,
+	}).Info("Deleting namespace for projectId")
+	if len(projectNamespaces[projectId]) == 0 {
+		log.WithFields(logrus.Fields{
+			"projectId": projectId,
+		}).Info("projectId has no more namespaces. Deleting entry")
+		if err := r.deleteKubeStateMetricsDeployment(ctx, projectId); err != nil {
+			return fmt.Errorf("failed to delete kube-state-metrics Deployment for projectId %s: %w", projectId, err)
+		}
+		delete(projectNamespaces, projectId)
+	} else {
+		namespaceList := getNamespaceListFromMap(projectNamespaces[projectId])
+		if err := r.ensureKubeStateMetricsDeployment(ctx, projectId, namespaceList); err != nil {
+			return fmt.Errorf("failed to update kube-state-metrics Deployment for projectId %s: %w", projectId, err)
+		}
+	}
+	delete(namespaceToProjectMap, namespaceName)
+	log.WithFields(logrus.Fields{
+		"namespace": namespaceName,
+		"projectId": projectId,
+	}).Info("Namespace of projectId deleted OK")
+	log.WithFields(logrus.Fields{
+		"currentSetOfNamespaces": projectNamespaces,
+	}).Info("Current set of namespaces")
+
+	return nil
+}
+
+// Handle a namespace that has been created or updated.
+func (r *NamespaceReconciler) handleNamespaceUpdated(ctx context.Context, namespace *corev1.Namespace) error {
+	projectId, ok := namespace.Labels["field.cattle.io/projectId"]
+	if !ok {
+		log.WithFields(logrus.Fields{
+			"namespace": namespace.Name,
+		}).Warnf("No projectId label found for namespace")
+		return nil
+	}
+
+	lock.Lock()
+	defer lock.Unlock()
+
+	if _, exists := projectNamespaces[projectId]; !exists {
+		projectNamespaces[projectId] = make(map[string]struct{})
+	}
+	projectNamespaces[projectId][namespace.Name] = struct{}{}
+	namespaceToProjectMap[namespace.Name] = projectId
+
+	log.WithFields(logrus.Fields{
+		"namespace": namespace.Name,
+		"projectId": namespace.Labels["field.cattle.io/projectId"],
+	}).Info("Updating namespace for projectId")
+	namespaces := getNamespaceListFromMap(projectNamespaces[projectId])
+	if err := r.ensureKubeStateMetricsDeployment(ctx, projectId, namespaces); err != nil {
+		if errors.IsConflict(err) {
+			log.WithFields(logrus.Fields{
+				"namespace": namespace.Name,
+				"projectId": projectId,
+			}).Warnf("Temporary conflict when updating Deployment. Will be retried: %v", err)
+			return nil
+		} else {
+			return fmt.Errorf("failed to ensure kube-state-metrics Deployment for projectId %s: %w", projectId, err)
+		}
+	}
+	log.WithFields(logrus.Fields{
+		"namespace": namespace.Name,
+		"projectId": namespace.Labels["field.cattle.io/projectId"],
+	}).Info("Namespace for projectId added/updated OK")
+	log.WithFields(logrus.Fields{
+		"currentSetOfNamespaces": projectNamespaces,
+	}).Info("Current set of namespaces")
+
+	return nil
+}
+
 func (r *NamespaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	// Fetch the namespace instance
+	// Checking whether the context has been cancelled
+	select {
+	case <-ctx.Done():
+		return ctrl.Result{}, ctx.Err()
+	default:
+	}
+
 	namespace := &corev1.Namespace{}
+	namespacename := req.NamespacedName.Name
 	err := r.Get(ctx, req.NamespacedName, namespace)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// This means the namespace was deleted.
-			// Need to iterate over projectNamespaces map and remove the namespace from all projects if present.
-			for projectId, namespaces := range projectNamespaces {
-				if _, exists := namespaces[req.NamespacedName.Name]; exists {
-					delete(namespaces, req.NamespacedName.Name)
-					log.Infof("Namespace deleted: %s. Removed from projectId: %s", req.NamespacedName, projectId)
-
-					// If the project still has any namespaces, update its kube-state-metrics Deployment
-					// Otherwise, delete its kube-state-metrics Deployment
-					if len(namespaces) > 0 {
-						namespaceList := getNamespaceListFromMap(namespaces)
-						if err := r.ensureKubeStateMetricsDeployment(ctx, projectId, namespaceList); err != nil {
-							log.Error(err, "Failed to update kube-state-metrics Deployment for projectId", "projectId", projectId)
-							return ctrl.Result{}, err
-						}
-					} else {
-						if err := r.deleteKubeStateMetricsDeployment(ctx, projectId); err != nil {
-							log.Error(err, "Failed to delete kube-state-metrics Deploymentfor projectId", "projectId", projectId)
-							return ctrl.Result{}, err
-						}
-					}
-
-					// Remove the project from the projectNamespaces map
-					delete(projectNamespaces, projectId)
-					log.Infof("Removed projectId %s from projects as it no longer has any namespaces", projectId)
-				}
+			if err := r.handleNamespaceDeleted(ctx, namespacename); err != nil {
+				return r.handleRetry(namespacename, err)
 			}
-			log.Info("Current set of namespaces: \n" + prettyPrintProjectNamespaces())
+			delete(retryCount, namespacename)
+			log.WithFields(logrus.Fields{
+				"namespace": namespacename,
+				"projectId": namespaceToProjectMap[namespacename],
+			}).Info("Namespace deleted from projectId")
+			log.WithFields(logrus.Fields{
+				"currentSetOfNamespaces": projectNamespaces,
+			}).Info("Current set of namespaces")
 			return ctrl.Result{}, nil
 		}
-
-		log.Error(err, "Unable to fetch Namespace")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("unable to fetch Namespace %s: %w", namespacename, err)
 	}
 
-	// This means the namespace was created or updated.
-	// Add the namespace to the set of the corresponding projectId.
-	if projectId, ok := namespace.Labels["field.cattle.io/projectId"]; ok {
-		// If this projectId is seen for the first time, initialize a new map for it.
-		if _, exists := projectNamespaces[projectId]; !exists {
-			projectNamespaces[projectId] = make(map[string]struct{})
-		}
-		projectNamespaces[projectId][namespace.Name] = struct{}{}
-		log.Infof("Namespace added/updated: %s. Added to projectId: %s", namespace.Name, projectId)
-
-		// Ensure the kube-state-metrics Deployment exists for this projectId
-		namespaces := make([]string, len(projectNamespaces[projectId]))
-		i := 0
-		for namespaceName := range projectNamespaces[projectId] {
-			namespaces[i] = namespaceName
-			i++
-		}
-		if err := r.ensureKubeStateMetricsDeployment(ctx, projectId, namespaces); err != nil {
-			log.Error(err, "Failed to ensure kube-state-metrics Deployment for projectId", "projectId", projectId)
-			return ctrl.Result{}, err
-		}
-	} else {
-		log.Errorf("Failed to find label 'field.cattle.io/projectId' for namespace: %s", namespace.Name)
+	if err := r.handleNamespaceUpdated(ctx, namespace); err != nil {
+		return r.handleRetry(namespacename, err)
 	}
-
-	log.Info("Current set of namespaces: \n" + prettyPrintProjectNamespaces())
-
+	delete(retryCount, namespacename)
 	return ctrl.Result{}, nil
+}
+
+func (r *NamespaceReconciler) handleRetry(namespace string, err error) (ctrl.Result, error) {
+	retries := retryCount[namespace]
+	if retries >= 5 {
+		log.Error("Failed to ensure kube-state-metrics Deployment for projectId, no more retries")
+		delete(retryCount, namespace)
+		return ctrl.Result{}, nil
+	}
+	delay := time.Duration(math.Pow(2, float64(retries))) * time.Second
+	retryCount[namespace]++
+	return ctrl.Result{RequeueAfter: delay}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
