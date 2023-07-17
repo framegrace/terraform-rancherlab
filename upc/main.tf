@@ -3,7 +3,6 @@
 
 data "terraform_remote_state" "sample-lab" {
   backend = "local"
-
   config = {
     path = "../sample-lab/terraform.tfstate"
   }
