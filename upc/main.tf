@@ -129,6 +129,9 @@ prometheus:
       objectStorageConfig: 
         key: "thanos-config.yaml"
         name: "thanos-container-config"
+kube-state-metrics:
+  metricLabelsAllowlist:
+  - pods=[projectid]
 EOT
 }
 #  #chart_version = "9.4.200"

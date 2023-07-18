@@ -2,10 +2,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: add-namespace-label-to-pods
-  annotations:
-     pod-policies.kyverno.io/autogen-controllers: none
+  #annotations:
+    #pod-policies.kyverno.io/autogen-controllers: none
 spec:
-  background: false
+  background: true
   rules:
   - name: copy-namespace-label-to-pods
     context:
@@ -21,7 +21,6 @@ spec:
       resources:
         namespaces:
         - kube-system
-        - default
         - ingress-nginx
         - kube-node-lease
         - kube-public
