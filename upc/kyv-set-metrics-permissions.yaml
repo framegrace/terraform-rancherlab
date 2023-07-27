@@ -1,0 +1,42 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: dyn-metric-role-and-rolebinding
+spec:
+  background: true
+  rules:
+  - name: generate-role
+    match:
+      resources:
+        kinds:
+        - Namespace
+    generate:
+      kind: Role
+      name: "dyn-metric-role"
+      namespace: "{{request.object.metadata.name}}"
+      apiVersion: rbac.authorization.k8s.io/v1
+      data:
+        rules:
+        - apiGroups: [""]
+          resources: ["pods", "services"]
+          verbs: ["get", "watch", "list"]
+  - name: generate-rolebinding
+    match:
+      resources:
+        kinds:
+        - Namespace
+    generate:
+      kind: RoleBinding
+      name: "dyn-metric-rolebindig"
+      namespace: "{{request.object.metadata.name}}"
+      apiVersion: rbac.authorization.k8s.io/v1
+      data:
+        subjects:
+        - kind: ServiceAccount
+          name: "dyn-{{request.object.metadata.labels.\"field.cattle.io/projectId\" || 'unknown'}}-kube-state-metrics"
+          namespace: "cattle-monitoring-system"
+        roleRef:
+          kind: Role
+          name: "dyn-metric-role"
+          apiGroup: rbac.authorization.k8s.io
+

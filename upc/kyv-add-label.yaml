@@ -2,8 +2,6 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: add-namespace-label-to-pods
-  #annotations:
-    #pod-policies.kyverno.io/autogen-controllers: none
 spec:
   background: true
   rules:
@@ -33,56 +31,3 @@ spec:
         metadata:
           labels:
             projectid: "{{ namespaceLabels.\"field.cattle.io/projectId\" || 'unknown' }}"
-
-
-              #apiVersion: kyverno.io/v1
-              #kind: ClusterPolicy
-              #metadata:
-              #name: add-namespace-label-to-pods
-              #annotations:
-              #pod-policies.kyverno.io/autogen-controllers: none
-              #spec:
-              #background: false
-              #rules:
-              #- name: copy-namespace-label-to-pods
-              #context:
-              #- name: namespaceLabels
-              #apiCall:
-              #urlPath: "/api/v1/namespaces/{{request.namespace}}"
-              #jmesPath: "metadata.labels"
-              #match:
-              #resources:
-              #kinds:
-              #- Pod
-              #exclude:
-              #resources:
-              #namespaces:
-              #- kube-system
-              ##       - cattle-dashboards
-              ##       - cattle-fleet-system
-              ##       - cattle-impersonation-system
-              ##       - cattle-monitoring-system
-              ##       - cattle-system
-              #- default
-              #- ingress-nginx
-              #- kube-node-lease
-              #- kube-public
-              #- kube-system
-              #- kyverno
-              #- local
-              #- local-path-storage
-              #preconditions:
-              #all:
-              #- key: "{{request.object.metadata.namespace}}"
-              #operator: NotEquals
-              #value: ""
-              #- key: "{{ namespaceLabels.\"field.cattle.io/projectId\"}}"
-              #operator: NotEquals
-              #value: ""
-              #mutate:
-              #patchStrategicMerge:
-              #metadata:
-              #labels:
-              #+(project_id): "{{ namespaceLabels.\"field.cattle.io/projectId\"}}"
-              #
-              #

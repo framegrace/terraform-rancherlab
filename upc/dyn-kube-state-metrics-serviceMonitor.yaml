@@ -1,0 +1,118 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: dyn-monitoring-kube-state-metrics
+  namespace: cattle-monitoring-system
+spec:
+  jobLabel: __tmp_prometheus_job_name
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kube-state-metrics
+      app: dyn-kube-state-metrics
+  namespaceSelector:
+    matchNames:
+    - cattle-monitoring-system
+  endpoints:
+  - port: http
+    interval: 30s
+    scrapeTimeout: 10s
+    path: /metrics
+    scheme: http
+    honorLabels: true
+    honorTimestamps: true
+    path: /metrics
+    scheme: http
+    followRedirects: true
+#   metricRelabelings:
+#   - sourceLabels: [__address__]
+#     targetLabel: cluster_id
+#     replacement: c-2tmr7
+#     action: replace
+#   - sourceLabels: [__address__]
+#     targetLabel: cluster_name
+#     replacement: upc-sample0
+#     action: replace
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_service_label_app_kubernetes_io_instance, __meta_kubernetes_service_labelpresent_app_kubernetes_io_instance]
+      regex: dyn-.*;true
+      action: keep
+    - sourceLabels: [__meta_kubernetes_service_label_app_kubernetes_io_name, __meta_kubernetes_service_labelpresent_app_kubernetes_io_name]
+      regex: (kube-state-metrics);true
+      action: keep
+    - sourceLabels: [__meta_kubernetes_endpoint_port_name]
+      regex: http
+      action: keep
+    - sourceLabels: [__meta_kubernetes_service_label_cluster_id, __meta_kubernetes_service_labelpresent_cluster_id]
+      regex: (.*);true
+      targetLabel: cluster_id
+      replacement: ${1}
+      action: replace
+    - sourceLabels: [__meta_kubernetes_service_label_project_id, __meta_kubernetes_service_labelpresent_project_id]
+      regex: (.*);true
+      targetLabel: project_id
+      replacement: ${1}
+      action: replace
+    - sourceLabels: [__meta_kubernetes_service_label_cluster_name, __meta_kubernetes_service_labelpresent_cluster_name]
+      regex: (.*);true
+      targetLabel: cluster_name
+      replacement: ${1}
+      action: replace
+    - sourceLabels: [__meta_kubernetes_service_label_project_name, __meta_kubernetes_service_labelpresent_project_name]
+      regex: (.*);true
+      targetLabel: project_name
+      replacement: ${1}
+      action: replace
+    - sourceLabels: [__meta_kubernetes_endpoint_address_target_kind, __meta_kubernetes_endpoint_address_target_name]
+      regex: Node;(.*)
+      targetLabel: node
+      replacement: ${1}
+      action: replace
+    - sourceLabels: [__meta_kubernetes_endpoint_address_target_kind, __meta_kubernetes_endpoint_address_target_name]
+      regex: Pod;(.*)
+      targetLabel: pod
+      replacement: ${1}
+      action: replace
+    - sourceLabels: [__meta_kubernetes_namespace]
+      regex: (.*)
+      targetLabel: namespace
+      replacement: $1
+      action: replace
+    - sourceLabels: [__meta_kubernetes_service_name]
+      regex: (.*)
+      targetLabel: service
+      replacement: $1
+      action: replace
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      regex: (.*)
+      targetLabel: pod
+      replacement: $1
+      action: replace
+    - sourceLabels: [__meta_kubernetes_pod_container_name]
+      regex: (.*)
+      targetLabel: container
+      replacement: $1
+      action: replace
+    - sourceLabels: [__meta_kubernetes_service_name]
+      regex: (.*)
+      targetLabel: job
+      replacement: ${1}
+      action: replace
+    - sourceLabels: [__meta_kubernetes_service_label_app]
+      regex: (.+)
+      targetLabel: job
+      replacement: ${1}
+      action: replace
+    - regex: (.*)
+      targetLabel: endpoint
+      replacement: http
+      action: replace
+    - sourceLabels: [__address__]
+      regex: (.*)
+      modulus: 1
+      targetLabel: __tmp_hash
+      replacement: $1
+      action: hashmod
+    - sourceLabels: [__tmp_hash]
+      regex: "0"
+      action: keep
+

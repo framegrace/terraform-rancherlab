@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: example
+    role: alert-rules
+  name: prometheus-example-rules
+  namespace: default
+spec:
+  groups:
+  - name: example
+    rules:
+    - record: kubernetes_pod_info_with_projectid
+      expr: |
+        kubernetes_pod_info * on (namespace, pod) 
+        group_left(projectid) max by (namespace, pod, projectid) (kubernetes_pod_labels{labelname="projectid"})
+

@@ -85,6 +85,16 @@ provider "kubernetes" {
   cluster_ca_certificate = local.labdata.sample_cluster_ids[0].cluster_data.cluster_ca_certificate
 }
 
+provider "helm" {
+  alias                  = "upc-sample0"
+  kubernetes  {
+  host                   = local.labdata.sample_cluster_ids[0].cluster_data.endpoint
+  client_certificate     = local.labdata.sample_cluster_ids[0].cluster_data.client_certificate
+  client_key             = local.labdata.sample_cluster_ids[0].cluster_data.client_key
+  cluster_ca_certificate = local.labdata.sample_cluster_ids[0].cluster_data.cluster_ca_certificate
+  }
+}
+
 resource "kubernetes_namespace_v1" "cattle-monitoring-system-0" {
   lifecycle {
     ignore_changes = [metadata]
@@ -427,6 +437,87 @@ resource "kubernetes_ingress_v1" "minio_ingress" {
     }
   }
 }
+
+resource "helm_release" "kyverno0" {
+  provider = helm.upc-sample0
+  name             = "kyverno"
+  repository       = "https://kyverno.github.io/kyverno"
+  chart            = "kyverno"
+  namespace        = "kyverno"
+  create_namespace = true
+  wait             = true
+}
+
+provider "kubernetes" {
+  # Specify your Kubernetes provider configuration here
+}
+
+resource "kubernetes_manifest" "kyverno_policy" {
+  provider = kubernetes.upc-sample0
+  depends_on = [ helm_release.kyverno0 ]
+  manifest = {
+    "apiVersion" = "kyverno.io/v1"
+    "kind"       = "ClusterPolicy"
+    "metadata"   = {
+      "name" = "add-namespace-label-to-pods"
+    }
+    "spec"       = {
+      "background" = true
+      "rules"      = [
+        {
+          "name"     = "copy-namespace-label-to-pods"
+          "context"  = [
+            {
+              "name"    = "namespaceLabels"
+              "apiCall" = {
+                "urlPath"  = "/api/v1/namespaces/{{request.namespace}}"
+                "jmesPath" = "metadata.labels"
+              }
+            }
+          ]
+          "match"    = {
+            "resources" = {
+              "kinds" = ["Pod"]
+            }
+          }
+          "exclude"  = {
+            "resources" = {
+              "namespaces" = [
+                "kube-system",
+                "ingress-nginx",
+                "kube-node-lease",
+                "kube-public",
+                "kube-system",
+                "kyverno",
+                "local",
+                "local-path-storage"
+              ]
+            }
+          }
+          "mutate"   = {
+            "patchStrategicMerge" = {
+              "metadata" = {
+                "labels" = {
+                  "projectid" = "{{ namespaceLabels.\"field.cattle.io/projectId\" || 'unknown' }}"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+#resource "helm_release" "kyverno1" {
+#provider = helm.upc-sample1
+#name             = "kyverno"
+#repository       = "https://kyverno.github.io/"
+#chart            = "kyverno"
+#namespace        = "kyverno"
+#create_namespace = true
+#wait             = true
+#}
 
 provider "minio" {
   minio_server   = kubernetes_ingress_v1.minio_ingress.spec[0].rule[1].host
