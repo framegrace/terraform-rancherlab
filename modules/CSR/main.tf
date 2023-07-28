@@ -42,10 +42,10 @@ resource "tls_private_key" "cert_key" {
   algorithm = "RSA"
 }
 
-resource "local_file" "cert_key_file" {
-  content  = tls_private_key.cert_key.private_key_pem
-  filename = "${path.module}/certs/dev.cloudmanthan.key"
-}
+#resource "local_file" "cert_key_file" {
+  #content  = tls_private_key.cert_key.private_key_pem
+  #filename = "${path.module}/certs/dev.cloudmanthan.key"
+#}
 
 # Create CSR for for server certificate 
 resource "tls_cert_request" "cert_csr" {
@@ -83,10 +83,10 @@ resource "tls_locally_signed_cert" "cert" {
   ]
 }
 
-resource "local_file" "cert_cert" {
-  content  = tls_locally_signed_cert.cert.cert_pem
-  filename = "${path.module}/certs/dev.cloudmanthan.cert"
-}
+#resource "local_file" "cert_cert" {
+#content  = tls_locally_signed_cert.cert.cert_pem
+#filename = "${path.module}/certs/dev.cloudmanthan.cert"
+#}
 
 output "cert_pem" {
   value = tls_locally_signed_cert.cert.cert_pem
