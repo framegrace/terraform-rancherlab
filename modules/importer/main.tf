@@ -16,6 +16,15 @@ data "rancher2_setting" "install_uuid" {
 data "rancher2_setting" "server_url" {
   name = "server-url"
 }
+
+resource "helm_release" "kyverno" {
+  name             = "kyverno"
+  repository       = "https://kyverno.github.io/kyverno"
+  chart            = "kyverno"
+  namespace        = "kyverno"
+  create_namespace = true
+  wait             = true
+}
 #
 # Namespace
 resource "kubernetes_namespace" "cattle_system" {

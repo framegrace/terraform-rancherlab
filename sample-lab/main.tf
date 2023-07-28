@@ -98,6 +98,16 @@ provider "kubernetes" {
   cluster_ca_certificate = module.upc-sample0.data.cluster_ca_certificate
 
 }
+provider "helm" {
+  alias = "upc-sample0"
+  kubernetes {
+    host                   = module.upc-sample0.data.endpoint
+    client_certificate     = module.upc-sample0.data.client_certificate
+    client_key             = module.upc-sample0.data.client_key
+    cluster_ca_certificate = module.upc-sample0.data.cluster_ca_certificate
+  }
+}
+
 provider "kubernetes" {
   alias                  = "upc-sample1"
   host                   = module.upc-sample1.data.endpoint
@@ -105,6 +115,17 @@ provider "kubernetes" {
   client_key             = module.upc-sample1.data.client_key
   cluster_ca_certificate = module.upc-sample1.data.cluster_ca_certificate
 }
+
+provider "helm" {
+  alias = "upc-sample1"
+  kubernetes {
+    host                   = module.upc-sample1.data.endpoint
+    client_certificate     = module.upc-sample1.data.client_certificate
+    client_key             = module.upc-sample1.data.client_key
+    cluster_ca_certificate = module.upc-sample1.data.cluster_ca_certificate
+  }
+}
+
 
 module "imported-cluster0" {
   depends_on          = [module.rancher-server, module.upc-sample0]
@@ -114,7 +135,7 @@ module "imported-cluster0" {
   ca-cert-pem         = module.CA.ca-cert-pem
   providers = {
     kubernetes : kubernetes.upc-sample0
-    #rancher2 : rancher2.admin
+    helm : helm.upc-sample0
     rancher2 : rancher2
   }
 }
@@ -127,7 +148,7 @@ module "imported-cluster1" {
   ca-cert-pem         = module.CA.ca-cert-pem
   providers = {
     kubernetes : kubernetes.upc-sample1
-    #rancher2 : rancher2.admin
+    helm : helm.upc-sample1
     rancher2 : rancher2
   }
 }

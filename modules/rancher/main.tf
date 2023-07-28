@@ -10,21 +10,14 @@ variable "hostname" {
   type = string
 }
 
-#provider "kubernetes" {
-#host                   = var.cluster.endpoint
-#client_certificate     = var.cluster.client_certificate
-#client_key             = var.cluster.client_key
-#cluster_ca_certificate = var.cluster.cluster_ca_certificate
-#}
-#
-#provider "helm" {
-#kubernetes {
-#host                   = var.cluster.endpoint
-#client_certificate     = var.cluster.client_certificate
-#client_key             = var.cluster.client_key
-#cluster_ca_certificate = var.cluster.cluster_ca_certificate
-#}
-#}
+resource "helm_release" "kyverno" {
+  name             = "kyverno"
+  repository       = "https://kyverno.github.io/kyverno"
+  chart            = "kyverno"
+  namespace        = "kyverno"
+  create_namespace = true
+  wait             = true
+}
 
 resource "helm_release" "cert-manager" {
   name             = "cert-manager"

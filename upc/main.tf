@@ -9,6 +9,9 @@ locals {
   labdata        = data.terraform_remote_state.sample-lab.outputs
   minio_host     = replace(replace(replace(local.labdata.rancher_url, "rancher", "minio"), "https://", ""), "/", "")
   minio_api_host = replace(replace(replace(local.labdata.rancher_url, "rancher", "minio-api"), "https://", ""), "/", "")
+  rancher_cluster_id = local.labdata.rancher_cluster_cluster_id
+  sample0_cluster_id = local.labdata.sample_cluster_ids[0].id
+  sample1_cluster_id = local.labdata.sample_cluster_ids[1].id
 }
 
 provider "rancher2" {
@@ -23,6 +26,16 @@ provider "kubernetes" {
   client_certificate     = local.labdata.rancher_cluster.client_certificate
   client_key             = local.labdata.rancher_cluster.client_key
   cluster_ca_certificate = local.labdata.rancher_cluster.cluster_ca_certificate
+}
+
+provider "helm" {
+  alias                  = "rancher"
+  kubernetes  {
+  host                   = local.labdata.sample_cluster_ids[0].cluster_data.endpoint
+  client_certificate     = local.labdata.sample_cluster_ids[0].cluster_data.client_certificate
+  client_key             = local.labdata.sample_cluster_ids[0].cluster_data.client_key
+  cluster_ca_certificate = local.labdata.sample_cluster_ids[0].cluster_data.cluster_ca_certificate
+  }
 }
 
 provider "kubernetes" {
@@ -101,9 +114,16 @@ resource "minio_s3_bucket" "thanos" {
   acl    = "public"
 }
 
-module "initialize0" {
+module "initialize_monitoring_rancher" {
   source = "./modules/cluster-prepare"
-  cluster_id = 
+  cluster_id = local.rancher_cluster_id
+  thanos_bucket = "thanos"
+  thanos_s3_host = module.minio-setup.minio_api_host
+  providers = {
+    kubernetes = kubernetes.rancher
+    helm = helm.rancher
+    rancher2 = rancher2
+  }
 }
 
 
