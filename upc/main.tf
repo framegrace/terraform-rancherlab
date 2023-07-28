@@ -115,6 +115,7 @@ resource "minio_s3_bucket" "thanos" {
 }
 
 module "initialize_monitoring_rancher" {
+  depends_on = [ module.minio-setup ]
   source = "./modules/cluster-prepare"
   cluster_id = local.rancher_cluster_id
   thanos_bucket = "thanos"
@@ -126,6 +127,31 @@ module "initialize_monitoring_rancher" {
   }
 }
 
+module "initialize_monitoring_sample0" {
+  depends_on = [ module.minio-setup ]
+  source = "./modules/cluster-prepare"
+  cluster_id = local.sample0_cluster_id
+  thanos_bucket = "thanos"
+  thanos_s3_host = module.minio-setup.minio_api_host
+  providers = {
+    kubernetes = kubernetes.upc-sample0
+    helm = helm.upc-sample0
+    rancher2 = rancher2
+  }
+}
+
+module "initialize_monitoring_sample1" {
+  depends_on = [ module.minio-setup ]
+  source = "./modules/cluster-prepare"
+  cluster_id = local.sample1_cluster_id
+  thanos_bucket = "thanos"
+  thanos_s3_host = module.minio-setup.minio_api_host
+  providers = {
+    kubernetes = kubernetes.upc-sample1
+    helm = helm.upc-sample1
+    rancher2 = rancher2
+  }
+}
 
 output "rancher_url" {
   value = local.labdata.rancher_url

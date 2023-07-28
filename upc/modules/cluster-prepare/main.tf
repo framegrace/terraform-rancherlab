@@ -13,9 +13,58 @@ variable "thanos_bucket" {
  type = string
 }
 
+locals {
+   # Modifu this to add/remove/change the default recording-rules
+   rule_groups = [
+    {
+      name     = "project_cpu_usage"
+      interval = "1m"
+      rules    = [
+        {
+          record = "project:container_cpu_usage_seconds_total:rate1m"
+          expr   = <<-EOF
+            sum(
+              rate(container_cpu_usage_seconds_total[1m]) * on (namespace, pod) group_left(label_projectid, cluster_id)
+              kube_pod_labels{label_projectid!=""}
+            ) by (pod, namespace, label_projectid, cluster_id)
+          EOF
+        }
+      ]
+    },
+    {
+      name     = "project_pod_resource_requests"
+      interval = "1m"
+      rules    = [
+        {
+          record = "project:kube_pod_container_resource_requests"
+          expr   = <<-EOF
+            sum(
+              kube_pod_container_resource_requests * on (namespace, pod) group_left(label_projectid, cluster_id)
+              kube_pod_labels{label_projectid!=""}
+            ) by (pod, namespace, label_projectid, cluster_id, resource)
+          EOF
+        }
+      ]
+    },
+    {
+      name     = "project_pod_resource_limits"
+      interval = "1m"
+      rules    = [
+        {
+          record = "project:kube_pod_container_resource_limits"
+          expr   = <<-EOF
+            sum(
+              kube_pod_container_resource_limits * on (namespace, pod) group_left(label_projectid, cluster_id)
+              kube_pod_labels{label_projectid!=""}
+            ) by (pod, namespace, label_projectid, cluster_id, resource)
+          EOF
+        }
+      ]
+    }
+  ]
+}
 
 resource "kubernetes_manifest" "kyverno_policy" {
-  depends_on = [ helm_release.kyverno0 ]
   manifest = {
     "apiVersion" = "kyverno.io/v1"
     "kind"       = "ClusterPolicy"
@@ -117,3 +166,30 @@ kube-state-metrics:
   - pods=[projectid]
 EOT
 }
+
+resource "kubernetes_manifest" "prometheus_rule" {
+  depends_on = [ rancher2_app_v2.rancher-monitoring ]
+  manifest = {
+    apiVersion = "monitoring.coreos.com/v1"
+    kind       = "PrometheusRule"
+    metadata = {
+      labels = {
+        prometheus = "k8s"
+        role       = "recording-rules"
+      }
+      name      = "project-metrics-k8s-rules"
+      namespace = "cattle-monitoring-system"
+    }
+    spec = {
+      groups = [for group in local.rule_groups : {
+        name     = group.name
+        interval = group.interval
+        rules    = [for rule in group.rules : {
+          record = rule.record
+          expr   = rule.expr
+        }]
+      }]
+    }
+  }
+}
+
