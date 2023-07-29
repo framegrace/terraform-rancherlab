@@ -167,29 +167,29 @@ kube-state-metrics:
 EOT
 }
 
-resource "kubernetes_manifest" "prometheus_rule" {
-  depends_on = [ rancher2_app_v2.rancher-monitoring ]
-  manifest = {
-    apiVersion = "monitoring.coreos.com/v1"
-    kind       = "PrometheusRule"
-    metadata = {
-      labels = {
-        prometheus = "k8s"
-        role       = "recording-rules"
-      }
-      name      = "project-metrics-k8s-rules"
-      namespace = "cattle-monitoring-system"
-    }
-    spec = {
-      groups = [for group in local.rule_groups : {
-        name     = group.name
-        interval = group.interval
-        rules    = [for rule in group.rules : {
-          record = rule.record
-          expr   = rule.expr
-        }]
-      }]
-    }
-  }
-}
+#resource "kubernetes_manifest" "prometheus_rule" {
+#depends_on = [ rancher2_app_v2.rancher-monitoring ]
+#manifest = {
+#apiVersion = "monitoring.coreos.com/v1"
+#kind       = "PrometheusRule"
+#metadata = {
+#labels = {
+#prometheus = "k8s"
+#role       = "recording-rules"
+#}
+#name      = "project-metrics-k8s-rules"
+#namespace = "cattle-monitoring-system"
+#}
+#spec = {
+#groups = [for group in local.rule_groups : {
+#name     = group.name
+#interval = group.interval
+#rules    = [for rule in group.rules : {
+#record = rule.record
+#expr   = rule.expr
+#}]
+#}]
+#}
+#}
+#}
 
