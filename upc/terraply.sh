@@ -1,0 +1,2 @@
+terraform plan -target=module.initialize_monitoring_sample0.rancher2_app_v2.rancher-monitoring -target=module.initialize_monitoring_sample1.rancher2_app_v2.rancher-monitoring -target=module.initialize_monitoring_rancher.rancher2_app_v2.rancher-monitoring -out=partial.plan
+terraform apply
