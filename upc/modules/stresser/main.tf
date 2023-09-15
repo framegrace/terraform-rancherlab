@@ -1,3 +1,11 @@
+variable "name" {
+  type = string
+  description = "Stress app name"
+}
+variable "namespace" {
+  type = string
+  description = "Stress app nanespace"
+}
 variable "replica_count" {
   description = "Number of replicas"
   default     = 3
@@ -45,7 +53,8 @@ variable "stress_vm_bytes" {
 
 resource "kubernetes_deployment" "stress" {
   metadata {
-    name = "stress-deployment"
+    name = "stress-${var.name}"
+    namespace = var.namespace
   }
 
   spec {
