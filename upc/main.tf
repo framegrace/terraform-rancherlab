@@ -74,45 +74,45 @@ provider "helm" {
   }
 }
 
-#module "CSR-api" {
-  #source   = "../modules/CSR"
-  #dns-name = local.minio_api_host
-  #ca_key   = local.labdata.ca_cert-key
-  #ca_cert  = local.labdata.ca_cert-pem
-#}
+module "CSR-api" {
+  source   = "../modules/CSR"
+  dns-name = local.minio_api_host
+  ca_key   = local.labdata.ca_cert-key
+  ca_cert  = local.labdata.ca_cert-pem
+}
 #
-#module "CSR" {
-  #source   = "../modules/CSR"
-  #dns-name = local.minio_host
-  #ca_key   = local.labdata.ca_cert-key
-  #ca_cert  = local.labdata.ca_cert-pem
-#}
+module "CSR" {
+  source   = "../modules/CSR"
+  dns-name = local.minio_host
+  ca_key   = local.labdata.ca_cert-key
+  ca_cert  = local.labdata.ca_cert-pem
+}
 
 
-#module "minio-setup" {
-  #providers = {
-    #kubernetes = kubernetes.rancher
-  #}
-  #source = "./modules/minio-install"
-  #minio_host = local.minio_host
-  #minio_api_host = local.minio_api_host
-  #CSR-api = module.CSR-api
-  #CSR = module.CSR
-#}
+module "minio-setup" {
+  providers = {
+    kubernetes = kubernetes.rancher
+  }
+  source = "./modules/minio-install"
+  minio_host = local.minio_host
+  minio_api_host = local.minio_api_host
+  CSR-api = module.CSR-api
+  CSR = module.CSR
+}
 
 
-#provider "minio" {
-#  minio_server   = module.minio-setup.minio_api_host
-#  minio_user     = "minioadmin"
-#  minio_password = "minioadmin"
-#  minio_ssl      = true
-#  minio_insecure = true
-#}
+provider "minio" {
+  minio_server   = module.minio-setup.minio_api_host
+  minio_user     = "minioadmin"
+  minio_password = "minioadmin"
+  minio_ssl      = true
+  minio_insecure = true
+}
 
-#resource "minio_s3_bucket" "thanos" {
-#  bucket = "thanos"
-#  acl    = "public"
-#}
+resource "minio_s3_bucket" "thanos" {
+  bucket = "thanos"
+  acl    = "public"
+}
 
 module "initialize_monitoring_rancher" {
   #depends_on = [ module.minio-setup ]
@@ -157,7 +157,7 @@ resource "rancher2_project" "sampleproject0" {
   depends_on = [ module.initialize_monitoring_sample0 ]
   name = "sampleproject"
   cluster_id = local.sample0_cluster_id
-# enable_project_monitoring = true
+ enable_project_monitoring = true
 # project_monitoring_input {
 #   answers = {
 #   "alertmanager.enabled" = true

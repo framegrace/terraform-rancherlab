@@ -30,7 +30,18 @@ resource "kubernetes_secret_v1" "thanos-container-config" {
     name      = "thanos-container-config"
     namespace = "cattle-monitoring-system"
   }
+  data = {
+    "thanos-config.yaml" = <<EOF
+type: S3
+config:
+  access_key: minioadmin
+  secret_key: minioadmin
+  endpoint: "${var.minio_api_host}"
+  bucket: thanos
+EOF
+  }
 }
+
 
 resource "rancher2_app_v2" "rancher-monitoring" {
   depends_on = [kubernetes_secret_v1.thanos-container-config]
@@ -39,6 +50,18 @@ resource "rancher2_app_v2" "rancher-monitoring" {
   repo_name  = "rancher-charts"
   chart_name = "rancher-monitoring"
   cluster_id = var.cluster_id
+  values = <<EOT
+prometheus:
+  prometheusSpec:
+    thanos:
+      enabled: true
+      objectStorageConfig:
+        key: "thanos-config.yaml"
+        name: "thanos-container-config"
+kube-state-metrics:
+  metricLabelsAllowlist:
+  - pods=[projectid]
+EOT
   #chart_version = "9.4.200"
 }
 
