@@ -13,6 +13,10 @@ variable "thanos_bucket" {
  type = string
 }
 
+variable "minio_api_host" {
+   type = string
+}
+
 locals {
 }
 
@@ -42,7 +46,6 @@ EOF
   }
 }
 
-
 resource "rancher2_app_v2" "rancher-monitoring" {
   depends_on = [kubernetes_secret_v1.thanos-container-config]
   name       = "rancher-monitoring"
@@ -55,6 +58,8 @@ prometheus:
   prometheusSpec:
     thanos:
       enabled: true
+      external_labels:
+        tenant: 
       objectStorageConfig:
         key: "thanos-config.yaml"
         name: "thanos-container-config"

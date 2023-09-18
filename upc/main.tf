@@ -118,6 +118,7 @@ module "initialize_monitoring_rancher" {
   #depends_on = [ module.minio-setup ]
   source = "./modules/cluster-prepare"
   cluster_id = local.rancher_cluster_id
+  minio_api_host = local.minio_api_host
   thanos_bucket = "thanos"
   thanos_s3_host = ""
   providers = {
@@ -131,6 +132,7 @@ module "initialize_monitoring_sample0" {
   #  depends_on = [ module.minio-setup ]
   source = "./modules/cluster-prepare"
   cluster_id = local.sample0_cluster_id
+  minio_api_host = local.minio_api_host
   thanos_bucket = "thanos"
   thanos_s3_host = ""
   providers = {
@@ -144,6 +146,7 @@ module "initialize_monitoring_sample1" {
   #depends_on = [ module.minio-setup ]
   source = "./modules/cluster-prepare"
   cluster_id = local.sample1_cluster_id
+  minio_api_host = local.minio_api_host
   thanos_bucket = "thanos"
   thanos_s3_host = ""
   providers = {
@@ -158,28 +161,28 @@ resource "rancher2_project" "sampleproject0" {
   name = "sampleproject"
   cluster_id = local.sample0_cluster_id
  enable_project_monitoring = true
-# project_monitoring_input {
-#   answers = {
-#   "alertmanager.enabled" = true
-#   "federate.enabled" = true
-#   "grafana.adminPassword" = "admin"
-#   "grafana.adminUser" = "admin"
-#   "grafana.enabled" = true
-#   "grafana.persistence.accessModes[0]" = "ReadWriteOnce"
-#   "grafana.persistence.enabled" = true
-#   "grafana.persistence.size" = "1Gi"
-#   "grafana.persistence.storageClass" = "standard"
-#   "grafana.sidecar.dashboards.label" = "grafana_dashboard"
-#   "prometheus.prometheusSpec.evaluationInterval" = "1m"
-#   "prometheus.prometheusSpec.resources.limits.cpu" = "1000m"
-#   "prometheus.prometheusSpec.resources.limits.memory" = "3000Mi"
-#   "prometheus.prometheusSpec.resources.requests.cpu" = "750m"
-#   "prometheus.prometheusSpec.resources.requests.memory" = "750Mi"
-#   "prometheus.prometheusSpec.retention" = "10d"
-#   "prometheus.prometheusSpec.retentionSize" = "50GB"
-#   "prometheus.prometheusSpec.scrapeInterval" = "30s"
-#   }
-# }
+ project_monitoring_input {
+   answers = {
+   "alertmanager.enabled" = true
+   "federate.enabled" = true
+   "grafana.adminPassword" = "admin"
+   "grafana.adminUser" = "admin"
+   "grafana.enabled" = true
+   "grafana.persistence.accessModes[0]" = "ReadWriteOnce"
+   "grafana.persistence.enabled" = true
+   "grafana.persistence.size" = "1Gi"
+   "grafana.persistence.storageClass" = "standard"
+   "grafana.sidecar.dashboards.label" = "grafana_dashboard"
+   "prometheus.prometheusSpec.evaluationInterval" = "1m"
+   "prometheus.prometheusSpec.resources.limits.cpu" = "1000m"
+   "prometheus.prometheusSpec.resources.limits.memory" = "3000Mi"
+   "prometheus.prometheusSpec.resources.requests.cpu" = "750m"
+   "prometheus.prometheusSpec.resources.requests.memory" = "750Mi"
+   "prometheus.prometheusSpec.retention" = "10d"
+   "prometheus.prometheusSpec.retentionSize" = "50GB"
+   "prometheus.prometheusSpec.scrapeInterval" = "30s"
+   }
+ }
   resource_quota {
     project_limit {
       limits_cpu = "6000m"
@@ -461,16 +464,16 @@ resource "rancher2_project" "testproject1" {
 output "rancher_url" {
   value = local.labdata.rancher_url
 }
-#output "minio_url" {
-#value = "${module.minio-setup.minio_url}"
-#}
+output "minio_url" {
+value = "${module.minio-setup.minio_url}"
+}
 
-#output "bucket_arn" {
-#value = minio_s3_bucket.thanos.arn
-#}
-#output "bucket_domain" {
-#value = minio_s3_bucket.thanos.bucket_domain_name
-#}
+output "bucket_arn" {
+value = minio_s3_bucket.thanos.arn
+}
+output "bucket_domain" {
+value = minio_s3_bucket.thanos.bucket_domain_name
+}
 
 #output "data" {
 #value = data.terraform_remote_state.sample-lab
