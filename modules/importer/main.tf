@@ -46,6 +46,7 @@ resource "rancher2_cluster" "rancher-server" {
 
 # Cluster role
 resource "kubernetes_cluster_role" "proxy_clusterrole_kubeapiserver" {
+  #depends_on = [ rancher2_cluster.rancher-server ]
   lifecycle {
     ignore_changes = all
   }
@@ -58,7 +59,6 @@ resource "kubernetes_cluster_role" "proxy_clusterrole_kubeapiserver" {
     resources  = ["nodes/metrics", "nodes/proxy", "nodes/stats", "nodes/log", "nodes/spec"]
   }
 
-  #depends_on = [kubernetes_cluster_role_binding.import_role_binding]
 }
 
 # Cluster role binding
@@ -79,7 +79,6 @@ resource "kubernetes_cluster_role_binding" "proxy_role_binding_kubernetes_master
     name      = "proxy-clusterrole-kubeapiserver"
   }
 
-  #depends_on = [kubernetes_cluster_role_binding.import_role_binding]
 }
 
 
@@ -94,6 +93,8 @@ resource "kubernetes_service_account" "cattle" {
   }
 
   depends_on = [kubernetes_namespace.cattle_system]
+  
+  #depends_on = [ rancher2_cluster.rancher-server ]
 }
 
 # Cluster role binding
@@ -135,6 +136,7 @@ resource "kubernetes_secret" "catle_credentials_rancher-server" {
   }
   type       = "Opaque"
   depends_on = [kubernetes_namespace.cattle_system]
+  #depends_on = [ rancher2_cluster.rancher-server ]
 }
 
 # Cluster role
@@ -158,7 +160,6 @@ resource "kubernetes_cluster_role" "cattle_admin" {
     non_resource_urls = ["*"]
   }
 
-  #depends_on = [kubernetes_cluster_role_binding.import_role_binding]
 }
 
 # Deployment
@@ -333,6 +334,7 @@ resource "kubernetes_deployment" "cattle_cluster_agent" {
   }
 
   depends_on = [kubernetes_service_account.cattle, kubernetes_namespace.cattle_system]
+  #depends_on = [kubernetes_service_account.cattle, rancher2_cluster.rancher-server]
 }
 
 # Service definition
@@ -363,6 +365,8 @@ resource "kubernetes_service" "cattle_cluster_agent" {
   }
 
   depends_on = [kubernetes_namespace.cattle_system]
+
+  #depends_on = [rancher2_cluster.rancher-server]
 }
 
 #resource "rancher2_cluster_sync" "wait-sync" {

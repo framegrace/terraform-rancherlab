@@ -81,91 +81,70 @@ module "rancher-server" {
 }
 
 provider "rancher2" {
-  #alias     = "admin"
+  ##alias     = "admin"
   api_url   = "https://${local.rancher_hostname}"
   token_key = module.rancher-server.token_key
-  # Would need to add the CA to the local system
-  # for this to be secure. Will investigate if theres
-  # any way.
+  ## Would need to add the CA to the local system
+  ## for this to be secure. Will investigate if theres
+  ## any way.
   insecure = true
 }
 
-provider "kubernetes" {
-  alias                  = "upc-sample0"
-  host                   = module.upc-sample0.data.endpoint
-  client_certificate     = module.upc-sample0.data.client_certificate
-  client_key             = module.upc-sample0.data.client_key
-  cluster_ca_certificate = module.upc-sample0.data.cluster_ca_certificate
+#provider "kubernetes" {
+  #alias                  = "upc-sample0"
+  #host                   = module.upc-sample0.data.endpoint
+  #client_certificate     = module.upc-sample0.data.client_certificate
+  #client_key             = module.upc-sample0.data.client_key
+  #cluster_ca_certificate = module.upc-sample0.data.cluster_ca_certificate
+#
+#}
+#provider "helm" {
+  #alias = "upc-sample0"
+  #kubernetes {
+    #host                   = module.upc-sample0.data.endpoint
+    #client_certificate     = module.upc-sample0.data.client_certificate
+    #client_key             = module.upc-sample0.data.client_key
+    #cluster_ca_certificate = module.upc-sample0.data.cluster_ca_certificate
+  #}
+#}
+#
+#provider "kubernetes" {
+  #alias                  = "upc-sample1"
+  #host                   = module.upc-sample1.data.endpoint
+  #client_certificate     = module.upc-sample1.data.client_certificate
+  #client_key             = module.upc-sample1.data.client_key
+  #cluster_ca_certificate = module.upc-sample1.data.cluster_ca_certificate
+#}
+#
+#provider "helm" {
+  #alias = "upc-sample1"
+  #kubernetes {
+    #host                   = module.upc-sample1.data.endpoint
+    #client_certificate     = module.upc-sample1.data.client_certificate
+    #client_key             = module.upc-sample1.data.client_key
+    #cluster_ca_certificate = module.upc-sample1.data.cluster_ca_certificate
+  #}
+#}
 
-}
-provider "helm" {
-  alias = "upc-sample0"
-  kubernetes {
-    host                   = module.upc-sample0.data.endpoint
-    client_certificate     = module.upc-sample0.data.client_certificate
-    client_key             = module.upc-sample0.data.client_key
-    cluster_ca_certificate = module.upc-sample0.data.cluster_ca_certificate
-  }
-}
-
-provider "kubernetes" {
-  alias                  = "upc-sample1"
-  host                   = module.upc-sample1.data.endpoint
-  client_certificate     = module.upc-sample1.data.client_certificate
-  client_key             = module.upc-sample1.data.client_key
-  cluster_ca_certificate = module.upc-sample1.data.cluster_ca_certificate
-}
-
-provider "helm" {
-  alias = "upc-sample1"
-  kubernetes {
-    host                   = module.upc-sample1.data.endpoint
-    client_certificate     = module.upc-sample1.data.client_certificate
-    client_key             = module.upc-sample1.data.client_key
-    cluster_ca_certificate = module.upc-sample1.data.cluster_ca_certificate
-  }
-}
-
-
-module "imported-cluster0" {
-  depends_on          = [module.rancher-server, module.upc-sample0]
-  source              = "../modules/importer"
-  cluster-name        = "upc-sample0"
-  cluster-description = "UPC Sample cluster 0"
-  ca-cert-pem         = module.CA.ca-cert-pem
-  providers = {
-    kubernetes : kubernetes.upc-sample0
-    helm : helm.upc-sample0
-    rancher2 : rancher2
-  }
-}
-
-module "imported-cluster1" {
-  depends_on          = [module.rancher-server, module.upc-sample1]
-  source              = "../modules/importer"
-  cluster-name        = "upc-sample1"
-  cluster-description = "UPC Sample cluster 1"
-  ca-cert-pem         = module.CA.ca-cert-pem
-  providers = {
-    kubernetes : kubernetes.upc-sample1
-    helm : helm.upc-sample1
-    rancher2 : rancher2
-  }
-}
-
-resource "rancher2_cluster_sync" "wait-sync-0" {
-  #provider   = rancher2.admin
-  cluster_id = module.imported-cluster0.cluster_id
-}
-resource "rancher2_cluster_sync" "wait-sync-1" {
-  #provider   = rancher2.admin
-  cluster_id = module.imported-cluster1.cluster_id
-}
 data "rancher2_cluster" "local-cluster" {
   depends_on = [module.rancher-server]
   name       = "local"
 }
 
+output "sample_cluster_ids" {
+  value = [{
+    name         = "upc-sample0",
+    IP           = module.upc-sample0.docker-data-cp.IPAddress,
+#   id           = module.imported-cluster0.cluster_id,
+    cluster_data = module.upc-sample0.data
+    }, {
+    name         = "upc-sample1",
+    IP           = module.upc-sample0.docker-data-cp.IPAddress,
+#   id           = module.imported-cluster1.cluster_id,
+    cluster_data = module.upc-sample1.data
+  }]
+  sensitive = true
+}
 output "rancher_url" {
   value = "https://${local.rancher_hostname}/"
 }
@@ -185,20 +164,6 @@ output "rancher_cluster" {
 }
 output "rancher_cluster_cluster_id" {
   value     = data.rancher2_cluster.local-cluster.id
-  sensitive = true
-}
-output "sample_cluster_ids" {
-  value = [{
-    name         = "upc-sample0",
-    IP           = module.upc-sample0.docker-data-cp.IPAddress,
-    id           = module.imported-cluster0.cluster_id,
-    cluster_data = module.upc-sample0.data
-    }, {
-    name         = "upc-sample1",
-    IP           = module.upc-sample0.docker-data-cp.IPAddress,
-    id           = module.imported-cluster1.cluster_id,
-    cluster_data = module.upc-sample1.data
-  }]
   sensitive = true
 }
 output "ca_cert-pem" {
