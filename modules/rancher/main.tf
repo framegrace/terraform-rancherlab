@@ -34,9 +34,6 @@ resource "helm_release" "cert-manager" {
 }
 
 resource "kubernetes_namespace" "rancher_cattle_system" {
-  lifecycle {
-    ignore_changes = all
-  }
   metadata {
     name = "cattle-system"
   }

@@ -78,7 +78,7 @@ module "imported-cluster0" {
   source              = "../modules/importer"
   cluster-name        = "upc-sample0"
   cluster-description = "UPC Sample cluster 0"
-  ca-cert-pem         = local.labdata.sample_cluster_ids[0].cluster_data.cluster_ca_certificate
+  ca-cert-pem         = local.labdata.ca_cert-pem
   providers = {
     kubernetes : kubernetes.upc-sample0
     helm : helm.upc-sample0
@@ -90,7 +90,7 @@ module "imported-cluster1" {
   source              = "../modules/importer"
   cluster-name        = "upc-sample1"
   cluster-description = "UPC Sample cluster 1"
-  ca-cert-pem         = local.labdata.sample_cluster_ids[1].cluster_data.cluster_ca_certificate
+  ca-cert-pem         = local.labdata.ca_cert-pem
   providers = {
     kubernetes : kubernetes.upc-sample1
     helm : helm.upc-sample1
