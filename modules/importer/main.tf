@@ -28,9 +28,9 @@ resource "helm_release" "kyverno" {
 #
 # Namespace
 resource "kubernetes_namespace" "cattle_system" {
-  #lifecycle {
-    #ignore_changes = [metadata]
-  #}
+  lifecycle {
+    ignore_changes = [metadata]
+  }
   metadata {
     name = "cattle-system"
   }
@@ -47,9 +47,9 @@ resource "rancher2_cluster" "rancher-server" {
 # Cluster role
 resource "kubernetes_cluster_role" "proxy_clusterrole_kubeapiserver" {
   #depends_on = [ rancher2_cluster.rancher-server ]
-  #lifecycle {
-    #ignore_changes = all
-  #}
+  lifecycle {
+    ignore_changes = all
+  }
   metadata {
     name = "proxy-clusterrole-kubeapiserver"
   }
@@ -63,9 +63,9 @@ resource "kubernetes_cluster_role" "proxy_clusterrole_kubeapiserver" {
 
 # Cluster role binding
 resource "kubernetes_cluster_role_binding" "proxy_role_binding_kubernetes_master" {
-  #lifecycle {
-    #ignore_changes = all
-  #}
+  lifecycle {
+    ignore_changes = all
+  }
   metadata {
     name = "proxy-role-binding-kubernetes-master"
   }
@@ -84,24 +84,24 @@ resource "kubernetes_cluster_role_binding" "proxy_role_binding_kubernetes_master
 
 # Service account
 resource "kubernetes_service_account" "cattle" {
-  #lifecycle {
-    #ignore_changes = all
-  #}
+  lifecycle {
+    ignore_changes = all
+  }
   metadata {
     name      = "cattle"
     namespace = "cattle-system"
   }
 
-  depends_on = [kubernetes_namespace.cattle_system]
+  #depends_on = [kubernetes_namespace.cattle_system]
   
-  #depends_on = [ rancher2_cluster.rancher-server ]
+  depends_on = [ rancher2_cluster.rancher-server ]
 }
 
 # Cluster role binding
 resource "kubernetes_cluster_role_binding" "cattle_admin_binding" {
-  #lifecycle {
-    #ignore_changes = all
-  #}
+  lifecycle {
+    ignore_changes = all
+  }
   metadata {
     name = "cattle-admin-binding"
     labels = {
@@ -123,9 +123,9 @@ resource "kubernetes_cluster_role_binding" "cattle_admin_binding" {
 }
 
 resource "kubernetes_secret" "catle_credentials_rancher-server" {
-  #lifecycle {
-    #ignore_changes = [metadata[0].annotations]
-  #}
+  lifecycle {
+    ignore_changes = [metadata[0].annotations]
+  }
   metadata {
     name      = "cattle-credentials-rancher-server"
     namespace = "cattle-system"
@@ -135,8 +135,8 @@ resource "kubernetes_secret" "catle_credentials_rancher-server" {
     url   = data.rancher2_setting.server_url.value #"https://192.168.1.100.sslip.io"
   }
   type       = "Opaque"
-  depends_on = [kubernetes_namespace.cattle_system]
-  #depends_on = [ rancher2_cluster.rancher-server ]
+  #depends_on = [kubernetes_namespace.cattle_system]
+  depends_on = [ rancher2_cluster.rancher-server ]
 }
 
 # Cluster role
@@ -164,9 +164,9 @@ resource "kubernetes_cluster_role" "cattle_admin" {
 
 # Deployment
 resource "kubernetes_deployment" "cattle_cluster_agent" {
-  #lifecycle {
-  #ignore_changes = all
-  #}
+  lifecycle {
+  ignore_changes = all
+  }
   metadata {
     name      = "cattle-cluster-agent"
     namespace = "cattle-system"
@@ -333,15 +333,15 @@ resource "kubernetes_deployment" "cattle_cluster_agent" {
     }
   }
 
-  depends_on = [kubernetes_service_account.cattle, kubernetes_namespace.cattle_system]
-  #depends_on = [kubernetes_service_account.cattle, rancher2_cluster.rancher-server]
+  #depends_on = [kubernetes_service_account.cattle, kubernetes_namespace.cattle_system]
+  depends_on = [kubernetes_service_account.cattle, rancher2_cluster.rancher-server]
 }
 
 # Service definition
 resource "kubernetes_service" "cattle_cluster_agent" {
-  #lifecycle {
-  #ignore_changes = all
-  #}
+  lifecycle {
+  ignore_changes = all
+  }
   metadata {
     name      = "cattle-cluster-agent"
     namespace = "cattle-system"
@@ -364,11 +364,17 @@ resource "kubernetes_service" "cattle_cluster_agent" {
     }
   }
 
-  depends_on = [kubernetes_namespace.cattle_system]
+  #depends_on = [kubernetes_namespace.cattle_system]
 
-  #depends_on = [rancher2_cluster.rancher-server]
+  depends_on = [rancher2_cluster.rancher-server]
 }
 
+resource "rancher2_cluster_sync" "wait-sync" {
+  depends_on = [ kubernetes_service.cattle_cluster_agent,
+    kubernetes_deployment.cattle_cluster_agent ]
+  #provider   = rancher2.admin
+  cluster_id =  rancher2_cluster.rancher-server.id
+}
 #resource "rancher2_cluster_sync" "wait-sync" {
 #  cluster_id = rancher2_cluster.rancher-server.id
 #}

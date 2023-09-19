@@ -1,3 +1,21 @@
+variable "customers" {
+  description = "Information about customers, their projects, and namespaces"
+  type = list(object({
+    customer_name = string
+    customer_password = string
+    projects = list(object({
+      project_name = string
+      cluster_id   = number  # Either "clusterA" or "clusterB"
+      resource_profile = number
+      namespaces = list(object({
+        namespace_name = string
+        stresser       = string  # Type of application stresser
+      }))
+    }))
+  }))
+  default = []
+}
+
 data "terraform_remote_state" "sample-lab" {
   backend = "local"
   config = {
@@ -12,6 +30,31 @@ locals {
   rancher_cluster_id = local.labdata.rancher_cluster_cluster_id
   sample0_cluster_id = module.imported-cluster0.cluster_id
   sample1_cluster_id = module.imported-cluster1.cluster_id
+  clusters = [ sample0_cluster_id,sample1_cluster_id ]
+  flattened_projects = [
+    for customer in var.customers : [
+      for project in customer.projects : {
+        user_id       = rancher2_user.customer_user[customer.customer_name].id
+        project_name  = project.project_name
+        resource_profile = project.resource_profile
+        cluster_id    = clusters[project.cluster_id]
+      }
+    ]
+  ]
+
+  flattened_namespaces = [
+    for customer in var.customers : [
+      for project in customer.projects : [
+        for namespace in project.namespaces : {
+          customer_name = customer.customer_name
+          project_name  = project.project_name
+          cluster_id    = project.cluster_id
+          namespace_name = namespace.namespace_name
+          stresser       = namespace.stresser
+        }
+      ]
+    ]
+  ]
 }
 
 provider "rancher2" {
@@ -98,14 +141,14 @@ module "imported-cluster1" {
   }
 }
 
-resource "rancher2_cluster_sync" "wait-sync-0" {
+#resource "rancher2_cluster_sync" "wait-sync-0" {
   #provider   = rancher2.admin
-  cluster_id = module.imported-cluster0.cluster_id
-}
-resource "rancher2_cluster_sync" "wait-sync-1" {
-  #provider   = rancher2.admin
-  cluster_id = module.imported-cluster1.cluster_id
-}
+#  cluster_id = module.imported-cluster0.cluster_id
+#}
+#resource "rancher2_cluster_sync" "wait-sync-1" {
+#  #provider   = rancher2.admin
+#  cluster_id = module.imported-cluster1.cluster_id
+#}
 
 module "CSR-api" {
   source   = "../modules/CSR"
@@ -162,7 +205,7 @@ module "initialize_monitoring_rancher" {
 }
 
 module "initialize_monitoring_sample0" {
-  #  depends_on = [ module.minio-setup ]
+  depends_on = [ module.imported-cluster0 ]
   source         = "./modules/cluster-prepare"
   cluster_id     = local.sample0_cluster_id
   minio_api_host = local.minio_api_host
@@ -177,6 +220,7 @@ module "initialize_monitoring_sample0" {
 
 module "initialize_monitoring_sample1" {
   #depends_on = [ module.minio-setup ]
+  depends_on = [ module.imported-cluster1 ]
   source         = "./modules/cluster-prepare"
   cluster_id     = local.sample1_cluster_id
   minio_api_host = local.minio_api_host
@@ -187,6 +231,16 @@ module "initialize_monitoring_sample1" {
     helm       = helm.upc-sample1
     rancher2   = rancher2
   }
+}
+
+# Create customers as Rancher users
+resource "rancher2_user" "customer_user" {
+  for_each = { for customer in var.customers : customer.customer_name => customer }
+
+  username = each.value.customer_name
+  password = each.value.password
+  name     = each.value.customer_name
+  enabled  = true
 }
 
 # Create a new Rancher User
@@ -204,6 +258,40 @@ resource "rancher2_user" "otheruser" {
   enabled  = true
 }
 
+resource_profile = [ 
+  {
+    resource_quota = {
+      project_limit = {
+        limits_cpu       = "6000m"
+        limits_memory    = "15000Mi"
+        requests_storage = "10Gi"
+      }
+      namespace_default_limit = {
+        limits_cpu       = "1200m"
+        limits_memory    = "1500Mi"
+        requests_storage = "200Mi"
+      }
+    }
+    container_resource_limit = {
+      limits_cpu      = "2000m"
+      limits_memory   = "500Mi"
+      requests_cpu    = "1000m"
+      requests_memory = "100Mi"
+    }
+  }
+]
+module "create_projects" {
+  depends_on                = [module.initialize_monitoring_sample0,
+                               module.initialize_monitoring_sample1]
+  source                    = "./modules/project-prepare"
+  for_each = { for proj in local.flattened_projects : "${proj.customer_name}-${proj.project_name}" => proj }
+  project_name = each.value.project_name
+  cluster_id = each.value.cluster_id
+  owner_user_id = each.value.user_id
+  enable_project_monitoring = true
+  resource_quota = var.resource_profile[each.value.resource_profile].resource_quota
+  container_resource_limit = var.resource_profile[each.value.resource_profile].container_resource_limit
+}
 module "sampleproject0" {
   depends_on                = [module.initialize_monitoring_sample0]
   source                    = "./modules/project-prepare"
