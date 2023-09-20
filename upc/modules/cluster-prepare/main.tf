@@ -53,20 +53,20 @@ resource "rancher2_app_v2" "rancher-monitoring" {
   repo_name  = "rancher-charts"
   chart_name = "rancher-monitoring"
   cluster_id = var.cluster_id
-  values = <<EOT
-prometheus:
-  prometheusSpec:
-    thanos:
-      enabled: true
-      external_labels:
-        tenant: 
-      objectStorageConfig:
-        key: "thanos-config.yaml"
-        name: "thanos-container-config"
-kube-state-metrics:
-  metricLabelsAllowlist:
-  - pods=[projectid]
-EOT
+  #  values = <<EOT
+  #prometheus:
+  #prometheusSpec:
+  #  thanos:
+  #    enabled: true
+  #    external_labels:
+  #      tenant: some
+  #    objectStorageConfig:
+  #      key: "thanos-config.yaml"
+  #      name: "thanos-container-config"
+  #kube-state-metrics:
+  #metricLabelsAllowlist:
+  #- pods=[projectid]
+  #EOT
   #chart_version = "9.4.200"
 }
 
