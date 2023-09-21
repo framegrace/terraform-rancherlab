@@ -115,7 +115,27 @@ variable "customers" {
     }
   ]
 }
-
+variable "stressers" {
+  default = {
+    replicator = {
+      replicas = 2
+      cpu_limit = "300m"
+      stress_cpu = 1
+      stress_vm = 1
+    },
+    cpu-hitter = {
+      replicas = 1
+      stress_cpu = 4
+      stress_vm = 1
+    },
+    mem-hitter = {
+      replicas = 1
+      stress_cpu = 1
+      stress_vm = 2
+      memory_limit = "800M"
+    }
+  }
+}
 variable "resource_profile" {
   type = list(object({
     resource_quota = object({
