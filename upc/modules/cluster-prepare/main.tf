@@ -5,6 +5,9 @@ variable "cluster_id" {
   type = string
 }
 
+variable "rancher_url" {
+  type = string
+}
 variable "thanos_s3_host" {
   type = string
 }
@@ -35,13 +38,13 @@ resource "kubernetes_secret_v1" "thanos-container-config" {
     namespace = "cattle-monitoring-system"
   }
   data = {
-    "thanos-config.yaml" = <<EOF
+"thanos-config.yaml" = <<EOF
 type: S3
 config:
-  access_key: minioadmin
-  secret_key: minioadmin
-  endpoint: "${var.minio_api_host}"
-  bucket: thanos
+access_key: minioadmin
+secret_key: minioadmin
+endpoint: "${var.minio_api_host}"
+bucket: thanos
 EOF
   }
 }
@@ -52,22 +55,25 @@ resource "rancher2_app_v2" "rancher-monitoring" {
   namespace  = "cattle-monitoring-system"
   repo_name  = "rancher-charts"
   chart_name = "rancher-monitoring"
+  #chart_version = "9.4.200"
+  wait = true
   cluster_id = var.cluster_id
-  #  values = <<EOT
+  #values = <<EOT
   #prometheus:
   #prometheusSpec:
-  #  thanos:
-  #    enabled: true
-  #    external_labels:
-  #      tenant: some
-  #    objectStorageConfig:
-  #      key: "thanos-config.yaml"
-  #      name: "thanos-container-config"
-  #kube-state-metrics:
-  #metricLabelsAllowlist:
-  #- pods=[projectid]
+  #thanos:
+  #enabled: true
+  #external_labels:
+  #tenant: atenant
+  #objectStorageConfig:
+  #key: "thanos-config.yaml"
+  #name: "thanos-container-config"
   #EOT
-  #chart_version = "9.4.200"
+}
+
+data "rancher2_project" "system" {
+  cluster_id = var.cluster_id
+  name = "System"
 }
 
 resource "rancher2_app_v2" "prometheus-federation" {
@@ -76,5 +82,17 @@ resource "rancher2_app_v2" "prometheus-federation" {
   namespace  = "cattle-monitoring-system"
   repo_name  = "rancher-charts"
   chart_name = "prometheus-federator"
+  wait = true
   cluster_id = var.cluster_id
+  values = <<EOT
+global:
+  cattle:
+    systemProjectId: ${split(":",data.rancher2_project.system.id)[1]}
+    url: ${trim(var.rancher_url,"/")}
+helmProjectOperator:
+  global:
+    cattle:
+      systemProjectId: ${split(":",data.rancher2_project.system.id)[1]}
+      url: ${trim(var.rancher_url,"/")}
+EOT
 }

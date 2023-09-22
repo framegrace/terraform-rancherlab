@@ -1,10 +1,17 @@
 variable "name" {
-  type = string
+  type        = string
   description = "Stress app name"
 }
 variable "namespace" {
-  type = string
+  type        = string
   description = "Stress app nanespace"
+}
+variable "cluster_id" {
+  type = string
+}
+variable "project_id" {
+  type    = string
+  default = null
 }
 variable "replica_count" {
   description = "Number of replicas"
@@ -18,7 +25,8 @@ variable "cpu_request" {
 
 variable "cpu_limit" {
   description = "CPU limit"
-  default     = "500m"
+  #default     = "500m"
+  default = null
 }
 
 variable "memory_request" {
@@ -28,7 +36,8 @@ variable "memory_request" {
 
 variable "memory_limit" {
   description = "Memory limit"
-  default     = "256Mi"
+  #default     = "256Mi"
+  default = null
 }
 
 variable "stress_cpu" {
@@ -51,49 +60,48 @@ variable "stress_vm_bytes" {
   default     = "128M"
 }
 
-resource "rancher2_app_v2" {
-  cluster_id = var.cluster_id
-  name = "stress-${var.name}"
-  namespace = var.namespace
-  repo_name = "stresser-global"
-  chart_name = "stress-helm-chart"
-  chart_version = "0.1.0"
-  values = <<EOT
-replicaCount:  ${var.replica_count}
+resource "rancher2_app_v2" "stresser" {
+  cluster_id    = var.cluster_id
+  name          = lower("${var.namespace}-${var.name}")
+  namespace     = lower(var.namespace)
+  project_id    = var.project_id
+  repo_name     = "stresser"
+  chart_name    = "stress"
+  chart_version = "0.2.0"
+  wait          = false
+  values        = <<EOT
+deployment:
+  replicaCount:  ${var.replica_count}
 resources:
-  limits:
-    cpu: ${var.cpu_limit}
-    memory: ${var.memory_limit}
-  requests:
-    cpu: ${var.cpu_request}
-    memory: ${var.memory_request}
-stress:
-  cpu: ${var.stress_cpu}
-  io: ${var.stress_io}
-  vm: ${var.stress_vm}
-  vmBytes: ${var.stress_vm_bytes}
+ limits:
+   cpu: ${var.cpu_limit == null ? "500m" : var.cpu_limit}
+   memory: ${var.memory_limit == null ? "256Mi" : var.memory_limit}
+ requests:
+   cpu: ${var.cpu_request}
+   memory: ${var.memory_request}
+stressCmd: "stress --cpu ${var.stress_cpu} --io ${var.stress_io} --vm ${var.stress_vm} --vm-bytes ${var.stress_vm_bytes}"
 EOT
 }
 #resource "kubernetes_deployment" "stress" {
-  #metadata {
-    #name = "stress-${var.name}"
-    #namespace = var.namespace
+#metadata {
+#name = "stress-${var.name}"
+#namespace = var.namespace
 #}
 #
 #spec {
 #replicas = var.replica_count
 #
-    #selector {
-      #match_labels = {
-        #app = "stress"
-      #}
+#selector {
+#match_labels = {
+#app = "stress"
+#}
 #}
 #
 #template {
-      #metadata {
-        #labels = {
-          #app = "stress"
-        #}
+#metadata {
+#labels = {
+#app = "stress"
+#}
 #}
 #
 #spec {

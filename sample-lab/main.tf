@@ -90,11 +90,12 @@ provider "rancher2" {
   insecure = true
 }
 
-resource "rancher2_catalog" "stresser" {
-  name = "stresser-global"
-  kind = "helm"
-  url = "https://github.com/weinong/stress-helm-chart.git"
-  branch = "master"
+resource "rancher2_catalog_v2" "stresser" {
+  name = "stresser"
+  cluster_id  = data.rancher2_cluster.local-cluster.id
+  url = "https://charts.sudermanjr.com"
+  #git_repo = "https://github.com/weinong/stress-helm-chart.git"
+  #git_branch = "master"
 }
 #provider "kubernetes" {
   #alias                  = "upc-sample0"

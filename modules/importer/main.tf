@@ -48,6 +48,15 @@ resource "rancher2_cluster_sync" "wait-sync" {
   kubernetes_deployment.cattle_cluster_agent ]
   cluster_id =  rancher2_cluster.rancher-server.id
 }
+
+resource "rancher2_catalog_v2" "stresser" {
+  depends_on = [ rancher2_cluster_sync.wait-sync ]
+  name = "stresser"
+  cluster_id =  rancher2_cluster.rancher-server.id
+  url = "https://charts.sudermanjr.com"
+  #git_repo = "https://github.com/weinong/stress-helm-chart.git"
+  #git_branch = "master"
+}
 # MANIFEST FOR CLUSTER REGISTRATION
 
 # Cluster role

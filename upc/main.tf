@@ -1,3 +1,11 @@
+variable "enable_project_monitoring" {
+  type    = bool
+  default = false
+}
+variable "stress" {
+  type    = bool
+  default = true
+}
 variable "customers" {
   description = "Information about customers, their projects, and namespaces"
   type = list(object({
@@ -22,33 +30,33 @@ variable "customers" {
         {
           project_name     = "December"
           cluster_id       = 0
-          resource_profile = 2
+          resource_profile = 1
           namespaces = [
             {
               namespace_name   = "Snow"
-              resource_profile = 2
-              stresser         = "memory"
+              resource_profile = 1
+              stresser         = "behaver"
             },
             {
               namespace_name   = "Christmas"
-              resource_profile = 2
-              stresser         = "cpu"
+              resource_profile = 1
+              stresser         = "cpu-hitter"
             }
           ]
         },
         {
           project_name     = "January"
           cluster_id       = 1
-          resource_profile = 2
+          resource_profile = 1
           namespaces = [
             {
               namespace_name   = "Ice"
-              resource_profile = 2
-              stresser         = "replica"
+              resource_profile = 1
+              stresser         = "replicator"
             },
             {
               namespace_name   = "NewYear"
-              resource_profile = 2
+              resource_profile = 1
               stresser         = "behaver"
             }
           ]
@@ -67,24 +75,24 @@ variable "customers" {
             {
               namespace_name   = "Rain"
               resource_profile = 1
-              stresser         = "memory"
+              stresser         = "cpu-hitter"
             },
             {
               namespace_name   = "Easter"
               resource_profile = 1
-              stresser         = "cpu"
+              stresser         = "behaver"
             }
           ]
         },
         {
           project_name     = "May"
           cluster_id       = 1
-          resource_profile = 0
+          resource_profile = 1
           namespaces = [
             {
               namespace_name   = "Flowers"
-              resource_profile = 0
-              stresser         = "memory"
+              resource_profile = 1
+              stresser         = "mem-hitter"
             }
           ]
         }
@@ -97,16 +105,16 @@ variable "customers" {
         {
           project_name     = "July"
           cluster_id       = 0
-          resource_profile = 0
+          resource_profile = 1
           namespaces = [
             {
               namespace_name   = "Sun"
-              resource_profile = 0
-              stresser         = "replica"
+              resource_profile = 1
+              stresser         = "replicator"
             },
             {
               namespace_name   = "IndependenceDay"
-              resource_profile = 0
+              resource_profile = 1
               stresser         = "behaver"
             }
           ]
@@ -116,22 +124,40 @@ variable "customers" {
   ]
 }
 variable "stressers" {
+  type = map(object({
+    replicas     = number
+    stress_cpu   = optional(number)
+    stress_vm    = optional(number)
+    cpu_limit    = optional(string)
+    memory_limit = optional(string)
+  }))
   default = {
+    behaver = {
+      replicas     = 1
+      cpu_limit    = null
+      stress_cpu   = 1
+      stress_vm    = 1
+      memory_limit = null
+    },
     replicator = {
-      replicas = 2
-      cpu_limit = "300m"
-      stress_cpu = 1
-      stress_vm = 1
+      replicas     = 2
+      cpu_limit    = "300m"
+      stress_cpu   = 1
+      stress_vm    = 1
+      memory_limit = null
     },
     cpu-hitter = {
-      replicas = 1
-      stress_cpu = 4
-      stress_vm = 1
+      replicas     = 1
+      cpu_limit    = null
+      stress_cpu   = 4
+      stress_vm    = 1
+      memory_limit = null
     },
     mem-hitter = {
-      replicas = 1
-      stress_cpu = 1
-      stress_vm = 2
+      replicas     = 1
+      cpu_limit    = null
+      stress_cpu   = 1
+      stress_vm    = 2
       memory_limit = "800M"
     }
   }
@@ -166,51 +192,51 @@ variable "resource_profile" {
     {
       resource_quota = {
         project_limit = {
-          limits_cpu       = "6000m"
-          limits_memory    = "15000Mi"
+          limits_cpu       = "27000m"
+          limits_memory    = "30000Mi"
           requests_storage = "10Gi"
         }
         namespace_default_limit = {
-          limits_cpu       = "1200m"
-          limits_memory    = "1500Mi"
+          limits_cpu       = "4000m"
+          limits_memory    = "10000Mi"
           requests_storage = "200Mi"
         }
       }
       container_resource_limit = {
-        limits_cpu      = "2000m"
-        limits_memory   = "500Mi"
-        requests_cpu    = "1000m"
-        requests_memory = "100Mi"
+        limits_cpu      = "900m"
+        limits_memory   = "600Mi"
+        requests_cpu    = "50m"
+        requests_memory = "80Mi"
       }
       namespace_limit = {
-        limits_cpu       = "1000m"
-        limits_memory    = "1500Mi"
+        limits_cpu       = "24000m"
+        limits_memory    = "20000Mi"
         requests_storage = "1Gi"
       }
     },
     {
       resource_quota = {
         project_limit = {
-          limits_cpu       = "10000m"
-          limits_memory    = "20000Mi"
-          requests_storage = "20Gi"
+          limits_cpu       = "30000m"
+          limits_memory    = "30000Mi"
+          requests_storage = "45Gi"
         }
         namespace_default_limit = {
-          limits_cpu       = "2200m"
-          limits_memory    = "4000Mi"
-          requests_storage = "500Mi"
+          limits_cpu       = "7100m"
+          limits_memory    = "6100Mi"
+          requests_storage = "10000Mi"
         }
       }
       container_resource_limit = {
-        limits_cpu      = "2000m"
-        limits_memory   = "500Mi"
-        requests_cpu    = "1000m"
-        requests_memory = "100Mi"
+        limits_cpu      = "100m"
+        limits_memory   = "100Mi"
+        requests_cpu    = "50m"
+        requests_memory = "80Mi"
       }
       namespace_limit = {
-        limits_cpu       = "1000m"
-        limits_memory    = "1000Mi"
-        requests_storage = "10Mi"
+        limits_cpu       = "7100m"
+        limits_memory    = "6100Mi"
+        requests_storage = "10000Mi"
       }
     },
     {
@@ -227,14 +253,14 @@ variable "resource_profile" {
         }
       }
       container_resource_limit = {
-        limits_cpu      = "2000m"
-        limits_memory   = "500Mi"
-        requests_cpu    = "1000m"
-        requests_memory = "100Mi"
+        limits_cpu      = "50m"
+        limits_memory   = "60Mi"
+        requests_cpu    = "40m"
+        requests_memory = "40Mi"
       }
       namespace_limit = {
-        limits_cpu       = "100m"
-        limits_memory    = "100Mi"
+        limits_cpu       = "600m"
+        limits_memory    = "300Mi"
         requests_storage = "1Gi"
       }
     },
@@ -252,14 +278,14 @@ variable "resource_profile" {
         }
       }
       container_resource_limit = {
-        limits_cpu      = "500m"
-        limits_memory   = "100Mi"
-        requests_cpu    = "100m"
+        limits_cpu      = "600m"
+        limits_memory   = "800Mi"
+        requests_cpu    = "40m"
         requests_memory = "50Mi"
       }
       namespace_limit = {
-        limits_cpu       = "100m"
-        limits_memory    = "100Mi"
+        limits_cpu       = "600m"
+        limits_memory    = "300Mi"
         requests_storage = "1Gi"
       }
     }
@@ -280,7 +306,7 @@ locals {
   rancher_cluster_id = local.labdata.rancher_cluster_cluster_id
   sample0_cluster_id = module.imported-cluster0.cluster_id
   sample1_cluster_id = module.imported-cluster1.cluster_id
-  clusters           = [ local.sample0_cluster_id,  local.sample1_cluster_id]
+  clusters           = [local.sample0_cluster_id, local.sample1_cluster_id]
   flattened_projects = flatten([
     for customer in var.customers : [
       for project in customer.projects : {
@@ -288,6 +314,7 @@ locals {
         customer_name    = customer.customer_name
         project_name     = project.project_name
         resource_profile = project.resource_profile
+        cluster_num      = project.cluster_id
         cluster_id       = local.clusters[project.cluster_id]
       }
     ]
@@ -446,6 +473,7 @@ module "initialize_monitoring_rancher" {
   #depends_on = [ module.minio-setup ]
   source         = "./modules/cluster-prepare"
   cluster_id     = local.rancher_cluster_id
+  rancher_url    = local.labdata.rancher_url
   minio_api_host = local.minio_api_host
   thanos_bucket  = "thanos"
   thanos_s3_host = ""
@@ -460,6 +488,7 @@ module "initialize_monitoring_sample0" {
   depends_on     = [module.imported-cluster0]
   source         = "./modules/cluster-prepare"
   cluster_id     = local.sample0_cluster_id
+  rancher_url    = local.labdata.rancher_url
   minio_api_host = local.minio_api_host
   thanos_bucket  = "thanos"
   thanos_s3_host = ""
@@ -475,6 +504,7 @@ module "initialize_monitoring_sample1" {
   depends_on     = [module.imported-cluster1]
   source         = "./modules/cluster-prepare"
   cluster_id     = local.sample1_cluster_id
+  rancher_url    = local.labdata.rancher_url
   minio_api_host = local.minio_api_host
   thanos_bucket  = "thanos"
   thanos_s3_host = ""
@@ -496,31 +526,53 @@ resource "rancher2_user" "customer_user" {
 }
 
 resource "rancher2_global_role_binding" "global_restricted_admin" {
-  for_each = { for customer in var.customers : customer.customer_name => customer }
-  name             = lower("${each.value.customer_name}-global-restricted-admin")
+  for_each       = { for customer in var.customers : customer.customer_name => customer }
+  name           = lower("${each.value.customer_name}-global-restricted-admin")
   global_role_id = "restricted-admin"
-  user_id          = rancher2_user.customer_user[each.value.customer_name].id
+  user_id        = rancher2_user.customer_user[each.value.customer_name].id
 }
 
-module "create_projects" {
-  depends_on = [module.initialize_monitoring_sample0,
-  module.initialize_monitoring_sample1]
-  source                    = "./modules/project-prepare"
-  for_each                  = { for proj in local.flattened_projects : lower("${proj.customer_name}-${proj.project_name}") => proj }
+module "create_projects0" {
+  depends_on     = [module.initialize_monitoring_sample0]
+  source         = "./modules/project-prepare"
+  minio_api_host = local.minio_api_host
+  for_each       = { for proj in local.flattened_projects : lower("${proj.customer_name}-${proj.project_name}") => proj if proj.cluster_num == 0 }
+  #lower("${proj.customer_name}-${proj.project_name}")
   project_name              = each.value.project_name
   cluster_id                = each.value.cluster_id
+  owner                     = each.value.customer_name
   owner_user_id             = each.value.user_id
-  enable_project_monitoring = true
+  enable_project_monitoring = var.enable_project_monitoring
   resource_quota            = var.resource_profile[each.value.resource_profile].resource_quota
   container_resource_limit  = var.resource_profile[each.value.resource_profile].container_resource_limit
+  providers = {
+    kubernetes = kubernetes.upc-sample0
+  }
+}
+module "create_projects1" {
+  depends_on     = [module.initialize_monitoring_sample1]
+  source         = "./modules/project-prepare"
+  minio_api_host = local.minio_api_host
+  for_each       = { for proj in local.flattened_projects : lower("${proj.customer_name}-${proj.project_name}") => proj if proj.cluster_num == 1 }
+  #lower("${proj.customer_name}-${proj.project_name}")
+  project_name              = each.value.project_name
+  cluster_id                = each.value.cluster_id
+  owner                     = each.value.customer_name
+  owner_user_id             = each.value.user_id
+  enable_project_monitoring = var.enable_project_monitoring
+  resource_quota            = var.resource_profile[each.value.resource_profile].resource_quota
+  container_resource_limit  = var.resource_profile[each.value.resource_profile].container_resource_limit
+  providers = {
+    kubernetes = kubernetes.upc-sample1
+  }
 }
 
 resource "rancher2_namespace" "namespaces" {
-  depends_on = [module.create_projects]
-  for_each   = { for ns in local.flattened_namespaces : lower("${ns.customer_name}-${ns.project_name}-${ns.namespace_name}") => ns }
+  depends_on = [module.create_projects0, module.create_projects1]
+  for_each   = var.stress ? { for ns in local.flattened_namespaces : lower("${ns.customer_name}-${ns.project_name}-${ns.namespace_name}") => ns } : {}
 
   name       = lower(each.value.namespace_name)
-  project_id = module.create_projects[lower("${each.value.customer_name}-${each.value.project_name}")].project_id
+  project_id = each.value.cluster_id == 0 ? module.create_projects0[lower("${each.value.customer_name}-${each.value.project_name}")].project_id : module.create_projects1[lower("${each.value.customer_name}-${each.value.project_name}")].project_id
   resource_quota {
     limit {
       limits_cpu       = var.resource_profile[each.value.resource_profile].namespace_limit.limits_cpu
@@ -530,19 +582,20 @@ resource "rancher2_namespace" "namespaces" {
   }
 }
 
-#module "stresser-sample-zero" {
-#depends_on    = [rancher2_namespace.namespaces]
-#for_each = { for ns in local.flattened_namespaces : "${ns.customer_name}-${ns.project_name}-${ns.namespace_name}" => ns }
-#source        = "./modules/stresser"
-#namespace     = each.value.namespace_name
-#replica_count = 1
-#name          = each.value.stresser
-#stress_cpu    = 1
-#stress_vm     = 1
-#providers = {
-#kubernetes = kubernetes.upc-sample0
-#}
-#}
+module "stresser-sample" {
+  depends_on    = [rancher2_namespace.namespaces]
+  for_each      = var.stress ? { for ns in local.flattened_namespaces : "${ns.customer_name}-${ns.project_name}-${ns.namespace_name}" => ns } : {}
+  source        = "./modules/stresser"
+  namespace     = each.value.namespace_name
+  cluster_id    = each.value.cluster_id == 0 ? module.create_projects0[lower("${each.value.customer_name}-${each.value.project_name}")].cluster_id : module.create_projects1[lower("${each.value.customer_name}-${each.value.project_name}")].cluster_id
+  project_id    = each.value.cluster_id == 0 ? module.create_projects0[lower("${each.value.customer_name}-${each.value.project_name}")].project_id : module.create_projects1[lower("${each.value.customer_name}-${each.value.project_name}")].project_id
+  replica_count = var.stressers[each.value.stresser].replicas
+  name          = each.value.stresser
+  stress_cpu    = var.stressers[each.value.stresser].stress_cpu
+  stress_vm     = var.stressers[each.value.stresser].stress_vm
+  cpu_limit     = "500m"
+  memory_limit  = "250Mi"
+}
 
 #module "stresser-sample-cero" {
 #depends_on = [ rancher2_namespace.namespace-cero ]
@@ -648,5 +701,5 @@ output "bucket_domain" {
 }
 
 output "projects" {
-value = local.flattened_projects
+  value = local.flattened_projects
 }
