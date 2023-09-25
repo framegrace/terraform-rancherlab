@@ -336,6 +336,11 @@ locals {
   ])
 }
 
+data "rancher2_project" "system" {
+  cluster_id = local.rancher_cluster_id
+  name = "System"
+}
+
 provider "rancher2" {
   api_url   = local.labdata.rancher_url
   token_key = local.labdata.rancher_token
@@ -598,94 +603,12 @@ module "stresser-sample" {
   memory_limit  = "250Mi"
 }
 
-#module "stresser-sample-cero" {
-#depends_on = [ rancher2_namespace.namespace-cero ]
-#source = "./modules/stresser"
-#namespace = "cero"
-#replica_count = 1
-#name = "mem-hitter"
-#stress_cpu = 1
-#stress_vm = 2
-#memory_limit = "800M"
-#providers = {
-#kubernetes = kubernetes.upc-sample0
-#}
-#}
-
-
-#module "stresser-sample-test-o" {
-#depends_on = [ rancher2_namespace.namespace-test-o ]
-#source = "./modules/stresser"
-#namespace = "test-o"
-#replica_count = 1
-#name = "cpu-hitter"
-#stress_cpu = 4
-#stress_vm = 1
-#providers = {
-#kubernetes = kubernetes.upc-sample0
-#}
-#}
-#
-#module "stresser-sample-test-a" {
-#depends_on = [ rancher2_namespace.namespace-test-a ]
-#source = "./modules/stresser"
-#namespace = "test-a"
-#replica_count = 2
-#name = "replicator"
-#cpu_limit = "300m"
-#stress_cpu = 1
-#stress_vm = 1
-#providers = {
-#kubernetes = kubernetes.upc-sample0
-#}
-#}
-#
-#resource "rancher2_namespace" "namespace-test-cero" {
-#name = "foo"
-#project_id = rancher2_project.testproject0.id
-#resource_quota {
-#limit {
-#}
-#}
-#}
-
-#resource "rancher2_namespace" "namespace-test-zero" {
-#name = "foo"
-#project_id = rancher2_project.testproject0.id
-#resource_quota {
-#limit {
-#limits_cpu = "100m"
-#limits_memory = "100Mi"
-#requests_storage = "1Gi"
-#}
-#}
-#}
-
-
-#resource "rancher2_namespace" "namespace-test-one" {
-#name = "foo"
-#project_id = rancher2_project.testproject1.id
-#resource_quota {
-#limit {
-#limits_cpu = "100m"
-#limits_memory = "100Mi"
-#requests_storage = "1Gi"
-#}
-#}
-#}
-#
-#resource "rancher2_namespace" "namespace-test-uno" {
-#name = "foo"
-#project_id = rancher2_project.testproject1.id
-#resource_quota {
-#limit {
-#limits_cpu = "100m"
-#limits_memory = "100Mi"
-#requests_storage = "1Gi"
-#}
-#}
-#}
-
+module "thanos-system" {
+  source = "./modules/thanos"
+  cluster_id = local.rancher_cluster_id
+  receiver_hostname = replace(replace(replace(local.labdata.rancher_url, "rancher", "thanos-rec"), "https://", ""), "/", "")
+  querier_hostname = replace(replace(replace(local.labdata.rancher_url, "rancher", "thanos-query"), "https://", ""), "/", "")
+}
 
 output "rancher_url" {
   value = local.labdata.rancher_url
