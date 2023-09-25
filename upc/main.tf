@@ -465,6 +465,7 @@ provider "minio" {
 }
 
 resource "minio_s3_bucket" "thanos" {
+  depends_on = [ module.minio-setup ]
   bucket = "thanos"
   acl    = "public"
 }
