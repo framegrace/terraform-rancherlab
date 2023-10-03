@@ -338,7 +338,7 @@ locals {
 
 data "rancher2_project" "system" {
   cluster_id = local.rancher_cluster_id
-  name = "System"
+  name       = "System"
 }
 
 provider "rancher2" {
@@ -470,9 +470,9 @@ provider "minio" {
 }
 
 resource "minio_s3_bucket" "thanos" {
-  depends_on = [ module.minio-setup ]
-  bucket = "thanos"
-  acl    = "public"
+  depends_on = [module.minio-setup]
+  bucket     = "thanos"
+  acl        = "public"
 }
 
 module "initialize_monitoring_rancher" {
@@ -521,6 +521,14 @@ module "initialize_monitoring_sample1" {
   }
 }
 
+module "thanos-system" {
+  source         = "./modules/thanos"
+  cluster_id     = local.rancher_cluster_id
+  minio_api_host = "minio-service.minio.svc.cluster.local:9000"
+  # - joins domain with prefixes. . makes subdomains
+  domain = "-${replace(replace(replace(local.labdata.rancher_url, "rancher-", ""), "https://", ""), "/", "")}"
+}
+
 # Create customers as Rancher users
 resource "rancher2_user" "customer_user" {
   for_each = { for customer in var.customers : customer.customer_name => customer }
@@ -539,15 +547,16 @@ resource "rancher2_global_role_binding" "global_restricted_admin" {
 }
 
 module "create_projects0" {
-  depends_on     = [module.initialize_monitoring_sample0]
-  source         = "./modules/project-prepare"
-  minio_api_host = local.minio_api_host
-  for_each       = { for proj in local.flattened_projects : lower("${proj.customer_name}-${proj.project_name}") => proj if proj.cluster_num == 0 }
+  depends_on       = [module.initialize_monitoring_sample0]
+  source           = "./modules/project-prepare"
+  remote_write_url = "http://${replace(replace(replace(local.labdata.rancher_url, "rancher", "thanos-rec"), "https://", ""), "/", "")}"
+  for_each         = { for proj in local.flattened_projects : lower("${proj.customer_name}-${proj.project_name}") => proj if proj.cluster_num == 0 }
   #lower("${proj.customer_name}-${proj.project_name}")
   project_name              = each.value.project_name
   cluster_id                = each.value.cluster_id
   owner                     = each.value.customer_name
   owner_user_id             = each.value.user_id
+  querier_host              = module.thanos-system.querier
   enable_project_monitoring = var.enable_project_monitoring
   resource_quota            = var.resource_profile[each.value.resource_profile].resource_quota
   container_resource_limit  = var.resource_profile[each.value.resource_profile].container_resource_limit
@@ -556,15 +565,16 @@ module "create_projects0" {
   }
 }
 module "create_projects1" {
-  depends_on     = [module.initialize_monitoring_sample1]
-  source         = "./modules/project-prepare"
-  minio_api_host = local.minio_api_host
-  for_each       = { for proj in local.flattened_projects : lower("${proj.customer_name}-${proj.project_name}") => proj if proj.cluster_num == 1 }
+  depends_on       = [module.initialize_monitoring_sample1]
+  source           = "./modules/project-prepare"
+  for_each         = { for proj in local.flattened_projects : lower("${proj.customer_name}-${proj.project_name}") => proj if proj.cluster_num == 1 }
+  remote_write_url = "http://${replace(replace(replace(local.labdata.rancher_url, "rancher", "thanos-rec"), "https://", ""), "/", "")}"
   #lower("${proj.customer_name}-${proj.project_name}")
   project_name              = each.value.project_name
   cluster_id                = each.value.cluster_id
   owner                     = each.value.customer_name
   owner_user_id             = each.value.user_id
+  querier_host              = module.thanos-system.querier
   enable_project_monitoring = var.enable_project_monitoring
   resource_quota            = var.resource_profile[each.value.resource_profile].resource_quota
   container_resource_limit  = var.resource_profile[each.value.resource_profile].container_resource_limit
@@ -603,12 +613,6 @@ module "stresser-sample" {
   memory_limit  = "250Mi"
 }
 
-module "thanos-system" {
-  source = "./modules/thanos"
-  cluster_id = local.rancher_cluster_id
-  receiver_hostname = replace(replace(replace(local.labdata.rancher_url, "rancher", "thanos-rec"), "https://", ""), "/", "")
-  querier_hostname = replace(replace(replace(local.labdata.rancher_url, "rancher", "thanos-query"), "https://", ""), "/", "")
-}
 
 output "rancher_url" {
   value = local.labdata.rancher_url
