@@ -59,11 +59,11 @@ variable "querier_host" {
 }
 
 variable "remote_write_url" {
-   type = string
+  type = string
 }
 
 locals {
-  pid = split(":", rancher2_project.project.id)[1]
+  pid         = split(":", rancher2_project.project.id)[1]
   querier_url = "http://${var.querier_host}"
 }
 
@@ -146,14 +146,14 @@ provider "kubernetes" {
 
 resource "kubernetes_config_map" "nginx_config_tenant" {
   metadata {
-    name = "nginx-config-tenant"
+    name      = "nginx-config-tenant"
     namespace = "cattle-project-${local.pid}-monitoring"
   }
 
   data = {
     "nginx.conf" = <<EOT
 worker_processes      auto;
-error_log             /dev/stdout debug;
+error_log             /dev/stdout warn;
 pid                   /var/cache/nginx/nginx.pid;
 
 events {
@@ -161,14 +161,13 @@ events {
 }
 
 http {
-    resolver 8.8.8.8;
     include       /etc/nginx/mime.types;
-    log_format    main '[$time_local - $status] $remote_addr - $remote_user $request ($http_referer) $query_path ';
+    log_format    main '[$time_local - $status] $remote_addr - $remote_user $request ($http_referer)';
     proxy_connect_timeout       10;
     proxy_read_timeout          180;
     proxy_send_timeout          5;
     proxy_buffering             off;
-    proxy_cache_path            /var/cache/nginx/cache levels=1:2 keys_zone=my_zone:100m inactive=1d max_size=10g;
+    # proxy_cache_path            /var/cache/nginx/cache levels=1:2 keys_zone=my_zone:100m inactive=1d max_size=10g;
 
     server {
         listen          8081;
@@ -185,47 +184,27 @@ http {
 
         location / {
 
-            proxy_cache         my_zone;
-            proxy_cache_valid   200 302 1d;
-            proxy_cache_valid   301 30d;
-            proxy_cache_valid   any 5m;
-            proxy_cache_bypass  $http_cache_control;
-            add_header          X-Proxy-Cache $upstream_cache_status;
-            add_header          Cache-Control "public";
-
-            proxy_pass     http://localhost:9090/;
-
-            sub_filter_once off;
-            sub_filter          'var PATH_PREFIX = "";' 'var PATH_PREFIX = ".";';
-
-            if ($request_filename ~ .*\.(?:js|css|jpg|jpeg|gif|png|ico|cur|gz|svg|svgz|mp4|ogg|ogv|webm)$) {
-                expires             90d;
-            }
-
-            rewrite ^/k8s/clusters/.*/proxy(.*) /$1 break;
-        }
-        location ~ ^/api/v1/query {
-            # Rewrite the URI to include the tenant_id
-            set $query_path "$args&tenant=${var.owner}"; 
-
-            # Route queries to external Thanos server
-            proxy_pass http://${var.querier_host}/api/v1/query?$${query_path};
-
+            proxy_pass     http://localhost:9099/;
             proxy_set_header Host ${var.querier_host};
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
+
+            sub_filter_once off;
+            sub_filter          'var PATH_PREFIX = "";' 'var PATH_PREFIX = ".";';
+
+            rewrite ^/k8s/clusters/.*/proxy(.*) /$1 break;
         }
     }
 }
 EOT
-}
+  }
 }
 
 # Enable federated project monitoring
 resource "kubernetes_manifest" "project_monitoring" {
-  depends_on = [ rancher2_project.project ]
-  count = var.enable_project_monitoring ? 1 : 0
+  depends_on = [rancher2_project.project]
+  count      = var.enable_project_monitoring ? 1 : 0
   manifest = {
     "apiVersion" = "helm.cattle.io/v1alpha1"
     "kind"       = "ProjectHelmChart"
@@ -264,26 +243,26 @@ resource "kubernetes_manifest" "project_monitoring" {
         "prometheus" = {
           "prometheusSpec" = {
             "volumes" = [{
-              "name" = "nginx-home"
+              "name"     = "nginx-home"
               "emptyDir" = {}
-              },{
+              }, {
               "name" = "prometheus-nginx"
               "configMap" = {
-                "name" = "nginx-config-tenant"
+                "name"        = "nginx-config-tenant"
                 "defaultMode" = 438
               }
             }]
             "externalLabels" = {
-               "tenant" = "${var.owner}"
-               "tenant_id" = "${var.owner_user_id}"
-               "project" = "${var.project_name}"
-               "project_id" = "${local.pid}"
+              "tenant"     = "${var.owner}"
+              "tenant_id"  = "${var.owner_user_id}"
+              "project"    = "${var.project_name}"
+              "project_id" = "${local.pid}"
             }
-            "remoteWrite" = [{ 
-              url  = "${var.remote_write_url}/api/v1/receive" 
+            "remoteWrite" = [{
+              url = "${var.remote_write_url}/api/v1/receive"
             }]
             "remoteWriteDashboards" = true
-            "evaluationInterval" = "1m"
+            "evaluationInterval"    = "1m"
             "resources" = {
               "limits" = {
                 "cpu"    = "1000m"
@@ -294,9 +273,47 @@ resource "kubernetes_manifest" "project_monitoring" {
                 "memory" = "750Mi"
               }
             }
-            "retention"      = "11d"
+            "retention"      = "3h"
             "retentionSize"  = "50GB"
             "scrapeInterval" = "30s"
+            "containers"     = <<EOT
+- name: prom-label-proxy
+  image: "quay.io/prometheuscommunity/prom-label-proxy:v0.7.0"
+  args:
+  - -label
+  - tenant
+  - -label-value
+  - ${var.owner}
+  - -upstream
+  - http://${var.querier_host}
+  - -insecure-listen-address
+  - localhost:9099
+  - -enable-label-apis
+  ports:
+  - containerPort: 9099
+    name: prom-label
+    protocol: TCP
+- name: prometheus-proxy
+  args:
+  - nginx
+  - -g
+  - daemon off;
+  - -c
+  - /nginx/nginx.conf
+  image: "{{ template "system_default_registry" . }}{{ .Values.prometheus.prometheusSpec.proxy.image.repository }}:{{ .Values.prometheus.prometheusSpec.proxy.image.tag }}"
+  ports:
+  - containerPort: 8081
+    name: nginx-http
+    protocol: TCP
+  volumeMounts:
+  - mountPath: /nginx
+    name: prometheus-nginx
+  - mountPath: /var/cache/nginx
+    name: nginx-home
+  securityContext:
+    runAsUser: 101
+    runAsGroup: 101
+EOT
           }
         }
       }

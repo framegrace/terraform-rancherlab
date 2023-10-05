@@ -58,17 +58,39 @@ resource "rancher2_app_v2" "rancher-monitoring" {
   #chart_version = "9.4.200"
   wait = true
   cluster_id = var.cluster_id
-  #values = <<EOT
-  #prometheus:
-  #prometheusSpec:
-  #thanos:
-  #enabled: true
-  #external_labels:
-  #tenant: atenant
-  #objectStorageConfig:
-  #key: "thanos-config.yaml"
-  #name: "thanos-container-config"
-  #EOT
+  values = <<EOT
+prometheus:
+ prometheusSpec:
+   podMonitorSelector:
+     matchLabels:
+        app.kubernetes.io/instance: rancher-monitoring
+   serviceMonitorSelector:
+     matchLabels:
+        app.kubernetes.io/instance: rancher-monitoring
+#   ruleNamespaceSelector:
+#     matchNames: 
+#     - cattle-system
+#     - cattle-monitoring-system
+#   serviceMonitorNamespaceSelector:
+#     matchNames: 
+#     - cattle-system
+#     - cattle-monitoring-system
+#   podMonitorNamespaceSelector:
+#     matchNames: 
+#     - cattle-system
+#     - cattle-monitoring-system
+  remoteWrite:
+  - name: thanos
+    url: "http://thanos-query-172.18.0.2.sslip.io/api/v1/receive"
+  externalLabels:
+    tenant: "System"
+    tenant_id: "system"
+    project:  "System"
+    project_id: "p-system"
+            
+#kube-state-metrics:
+  #namespaces: "cattle-system,cattle-monitoring-system,cattle-dashboards,cattle-fleet-system,cattle-impersonation-system,cattle-monitoring-system,kube-node-lease,kube-public,kube-system,kyverno"
+EOT
 }
 
 data "rancher2_project" "system" {
