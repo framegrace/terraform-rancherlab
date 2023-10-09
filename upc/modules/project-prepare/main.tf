@@ -144,9 +144,9 @@ provider "kubernetes" {
   # Your Kubernetes provider configuration here
 }
 
-resource "kubernetes_config_map" "nginx_config_tenant" {
+resource "kubernetes_config_map" "nginx_config_thanos" {
   metadata {
-    name      = "nginx-config-tenant"
+    name      = "nginx-config-thanos"
     namespace = "cattle-project-${local.pid}-monitoring"
   }
 
@@ -248,13 +248,11 @@ resource "kubernetes_manifest" "project_monitoring" {
               }, {
               "name" = "prometheus-nginx"
               "configMap" = {
-                "name"        = "nginx-config-tenant"
+                "name"        = "nginx-config-thanos"
                 "defaultMode" = 438
               }
             }]
             "externalLabels" = {
-              "tenant"     = "${var.owner}"
-              "tenant_id"  = "${var.owner_user_id}"
               "project"    = "${var.project_name}"
               "project_id" = "${local.pid}"
             }
@@ -281,9 +279,9 @@ resource "kubernetes_manifest" "project_monitoring" {
   image: "quay.io/prometheuscommunity/prom-label-proxy:v0.7.0"
   args:
   - -label
-  - tenant
+  - project_id
   - -label-value
-  - ${var.owner}
+  - ${local.pid}
   - -upstream
   - http://${var.querier_host}
   - -insecure-listen-address
